@@ -1676,7 +1676,16 @@ window.__ModuleLoader__.load({
         }
         /** 找不到时：可能是老消息还没挂载 → 逐屏向上滚，边滚边找。 */
         function jumpToScrolling(text, color) {
-          if (jumpTo(text, color)) return 'found'
+          // 2026-10-17 ⑦ 修「点大纲跳到原文后，色块/编号有时不显示」：
+          //   jumpTo 只负责滚动、不画标记；滚过去的那批行是新挂载的，插件重画时
+          //   markersSig 觉得"没变化"就跳过 → 目标行明明有批注却画不出色块/编号。
+          //   跳成功后强制重画两次（scheduleMarkerRedraw = decorateAll + 清签名 + renderMarkers），
+          //   与 :4364「切会话回来标记不见了」的修法同源。
+          function repaintMarkers() {
+            if (typeof scheduleMarkerRedraw !== 'function') return
+            scheduleMarkerRedraw(60); scheduleMarkerRedraw(400)
+          }
+          if (jumpTo(text, color)) { repaintMarkers(); return 'found' }
           var sc = null
           try { sc = document.querySelector('[data-conversation-scroll]') } catch (_) { /* ignore */ }
           if (sc === null) { try { sc = document.querySelector('[data-chat-flow]') } catch (_) { /* ignore */ } }
@@ -1684,7 +1693,7 @@ window.__ModuleLoader__.load({
           var steps = 0
           var timer = setInterval(function () {
             sc.scrollTop = Math.max(0, sc.scrollTop - Math.max(240, sc.clientHeight * 0.9))
-            if (jumpTo(text, color)) { clearInterval(timer); return }
+            if (jumpTo(text, color)) { repaintMarkers(); clearInterval(timer); return }
             if (sc.scrollTop === 0 || ++steps > 30) { clearInterval(timer) }
           }, 180)
           return 'searching'
