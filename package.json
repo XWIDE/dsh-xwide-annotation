@@ -1,0 +1,96 @@
+{
+  "name": "dsh-xwide-annotation",
+  "version": "1.5.0",
+  "annotPro": {
+    "upstream": "@changfenhuang/dsh-annotation",
+    "upstreamVersion": "1.4.11",
+    "upstreamAuthor": "omdsh-dev (npm @changfenhuang)",
+    "upstreamLicense": "MIT",
+    "upstreamRepo": "github.com/omdsh-dev/dsh-annotation",
+    "forkedBy": "X-WIDE <xiupk@sina.com.cn>",
+    "forkedDate": "2026-10-16",
+    "publishedAs": "dsh-xwide-annotation@1.5.0 (2026-10-17)",
+    "addedFeatures": [
+      "配色工作室：小圆钮选色 / 4 套荧光预设 / 自定义取色 / Alt+Shift+C 循环 / 位置记忆 / localStorage 持久化",
+      "批注大纲列表：列出当前对话全部批注、编号按序配色，点击跳转到原句并高亮",
+      "批注登记带行级锚点（seqKey + rowHead），大纲与气泡来源按原文去重，「一键清空全部」按会话隔离"
+    ]
+  },
+  "author": "X-WIDE <xiupk@sina.com.cn>",
+  "homepage": "https://github.com/XWIDE/dsh-xwide-annotation#readme",
+  "bilibili": "https://space.bilibili.com/374064919",
+  "type": "module",
+  "description": "DSH Web selection-annotation plugin: select assistant text, annotate (optional), and press Enter to send the annotation block with your message — the model replies to each annotation by number, with hoverable chips in the reply. X-WIDE fork adds a color studio and an annotation outline.",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "src",
+    "tsconfig.json",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('lib', { recursive: true, force: true })\" && tsc -p tsconfig.json",
+    "test": "node --test test/*.test.mjs",
+    "check": "npm run build && node --check lib/index.js && node --check client.js",
+    "prepack": "node --check client.js && node --check lib/index.js"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/XWIDE/dsh-xwide-annotation.git"
+  },
+  "bugs": {
+    "url": "https://github.com/XWIDE/dsh-xwide-annotation/issues"
+  },
+  "peerDependencies": {
+    "cordis": "^4.0.0-rc.7 || ^4.0.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  },
+  "dsh": {
+    "id": "dsh-xwide-annotation",
+    "title": "批注 Annotation (X-WIDE)",
+    "description": {
+      "en": "Select assistant text to annotate, press Enter to send the annotation block with your message; the reply answers each annotation by number. Includes a color studio and an annotation outline.",
+      "zh": "选中助手文字即可批注，回车把批注块随消息一起发出；回复按编号逐条对照。含配色工作室与批注大纲。"
+    },
+    "shortDescription": {
+      "en": "Selection annotations + outline + color studio",
+      "zh": "选区批注 + 批注大纲 + 配色工作室"
+    },
+    "author": "X-WIDE",
+    "keywords": ["dsh-plugin", "annotation", "annotate", "selection", "outline"],
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-locale"
+      ],
+      "platform": "web"
+    }
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  }
+}

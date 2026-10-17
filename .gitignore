@@ -1,0 +1,8 @@
+# 本地备份与依赖：绝不进仓库
+*.bak
+*.bak-*
+*.log
+node_modules/
+.DS_Store
+
+# npm pack 由 package.json "files" 白名单控制（lib/src/client.js/README/LICENSE/CHANGELOG）
