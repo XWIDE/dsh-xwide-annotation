@@ -25,8 +25,19 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Node 24：自带的 npm 11.x 才支持 trusted publishing。
+          # npm < 11.5.1 走 OIDC 发布时会报出误导性的 E404（不是包不存在）。
+          node-version: 24
           registry-url: https://registry.npmjs.org/
+
+      - name: Require npm >= 11.5.1 (trusted publishing floor)
+        run: |
+          V=$(npm -v)
+          echo "npm $V"
+          if [ "$(printf '%s\n' 11.5.1 "$V" | sort -V | head -n1)" != "11.5.1" ]; then
+            echo "npm $V is below 11.5.1 -> trusted publishing would fail with a misleading E404"
+            exit 1
+          fi
 
       # 纯静态插件，无运行时依赖（cordis 是 peerDependency），不装 node_modules
       - name: Syntax gate
