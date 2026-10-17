@@ -1,0 +1,8 @@
+*.bak
+*.bak-*
+.bak-*
+*.log
+.git
+.gitignore
+.screenshots.json
+test

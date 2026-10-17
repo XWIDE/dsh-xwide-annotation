@@ -4735,6 +4735,8 @@ window.__ModuleLoader__.load({
   var POS_KEY = 'dshap-badge-pos'
   var VIS_KEY = 'dshap-badge-visible'   // 插件页那行「配置」里的开关写的键：'0' = 隐藏角标
   var box = null, pill = null, panel = null, dot = null, label = null, chev = null, dotMark = null, expanded = false, collapsed = false, pending = null, pendingFade = null, tries = 0, started = false
+  // 2026-10-17 修：双击胶囊 = 本次隐藏（只藏这一趟，不写 localStorage，刷新就回来）
+  var hideThisSession = false
 
   function imp(el, prop, val) { try { el.style.setProperty(prop, val, 'important') } catch (e) { /* ignore */ } }
   function find(id) { try { return document.getElementById(id) } catch (e) { return null } }
@@ -4743,6 +4745,7 @@ window.__ModuleLoader__.load({
   // 插件页那一行的「配置」里有个开关，写的就是 VIS_KEY（'0' = 关）。
   // 开关不用刷新页面 —— 开关插件会派发 dshap-badge-visible-change 事件，这里立刻响应。
   function hiddenBySwitch() {
+    if (hideThisSession) return true   // 2026-10-17 修：双击隐藏的会话内状态
     try { return !!(window.localStorage && window.localStorage.getItem(VIS_KEY) === '0') } catch (e) { return false }
   }
 
@@ -4790,6 +4793,7 @@ window.__ModuleLoader__.load({
 
     pill = document.createElement('div'); pill.id = ID + '-pill'
     imp(pill, 'padding', '4px 10px'); imp(pill, 'border-radius', '999px'); imp(pill, 'cursor', 'pointer')
+    imp(pill, 'pointer-events', 'auto')   // 2026-10-17 修：胶囊自己也要显式可点，不吃继承的 none
     imp(pill, 'border', '1px solid #666'); imp(pill, 'background', 'rgba(24,24,26,.94)'); imp(pill, 'color', '#e5e5e5')
     imp(pill, 'box-shadow', '0 2px 10px rgba(0,0,0,.4)'); imp(pill, 'user-select', 'none'); imp(pill, 'white-space', 'nowrap')
     // 文字放进一个子 span：直接改 pill.textContent 会把 × 那个子元素一起抹掉（踩过一次）
@@ -4813,6 +4817,7 @@ window.__ModuleLoader__.load({
     // 2026-10-16 ⑤ 用户批注：「收起成圆点后，圆点上也留个小标记」——
     //   圆点里放一个状态符号（●=OK / !=有问题），同时把命中区做成 32px（尺子/02：命中区 ≥32px）
     imp(dot, 'display', 'none'); imp(dot, 'width', '32px'); imp(dot, 'height', '32px'); imp(dot, 'border-radius', '50%')
+    imp(dot, 'pointer-events', 'auto')   // 2026-10-17 修：圆点显式可点
     imp(dot, 'background', 'rgba(24,24,26,.92)'); imp(dot, 'border', '1px solid #666')
     imp(dot, 'box-shadow', '0 2px 8px rgba(0,0,0,.4)'); imp(dot, 'cursor', 'pointer'); imp(dot, 'user-select', 'none')
     imp(dot, 'align-items', 'center'); imp(dot, 'justify-content', 'center')
@@ -4820,7 +4825,7 @@ window.__ModuleLoader__.load({
     imp(dotMark, 'font-size', '13px'); imp(dotMark, 'line-height', '1'); imp(dotMark, 'color', '#22c55e')
     dot.appendChild(dotMark)
     try { dot.title = '批注自检（点一下展开）' } catch (e12) {}
-    dot.addEventListener('click', function () { setCollapsed(false) })
+    dot.addEventListener('click', function () { expanded = true; setCollapsed(false); run() })   // 2026-10-17 修：点圆点=展开并立刻看结果（旧写法在自检 OK 时一点就把角标整个点没了）
 
     var close = document.createElement('span')
     imp(close, 'margin-left', '8px'); imp(close, 'padding', '0 4px'); imp(close, 'border-radius', '4px'); imp(close, 'opacity', '.8')
@@ -4856,7 +4861,8 @@ window.__ModuleLoader__.load({
       applyVisible()   // 开关关着时，收起/展开都不许把角标露出来
       try { if (typeof console !== 'undefined') console.log('[dshap-badge] ' + (collapsed ? '已收成小圆点（点圆点展开）' : '已展开为胶囊')) } catch (e18) {}
     }
-    pill.addEventListener('dblclick', function (e) { e.preventDefault(); expanded = !expanded; run() })
+    // 2026-10-17 修：双击 = 本次隐藏（文件头注释承诺的行为；旧写法是「切换展开」，双击等于白点）
+    pill.addEventListener('dblclick', function (e) { e.preventDefault(); hideThisSession = true; applyVisible() })
 
     // 按住胶囊可以拖到任意角落；**必须真的拖动了才改定位** —— 只点一下不许跳位置。
     // 锚点用「贴右 + 贴顶」：面板是右对齐的，贴右锚定后它只会往左长，不会跑出屏幕。
@@ -4876,7 +4882,9 @@ window.__ModuleLoader__.load({
     function dragMove(e) {
       if (!dragging) return
       var dx = (e.clientX || 0) - sx, dy = (e.clientY || 0) - sy
-      if (Math.abs(dx) + Math.abs(dy) > 3) moved = true
+      // 2026-10-17 修「点不动」根因：阈值 3px 太苛刻 —— 鼠标/触控板从按下到抬起手就拖不拑 3px，
+      //   于是每次普通点击都被当成“拖动”，紧接的 click 被 suppressClickUntil 吞掉 → 看起来就是点不了。
+      if (Math.abs(dx) + Math.abs(dy) > 8) moved = true
       if (!moved) return
       var right = Math.max(0, Math.min(Math.max(0, viewW() - 60), sRight - dx))
       var top = Math.max(0, Math.min(Math.max(0, viewH() - 24), sTop + dy))
@@ -4890,7 +4898,7 @@ window.__ModuleLoader__.load({
       if (!moved) return
       saveState()
       moved = false                        // 立刻归零：不许留下"下一次点击被吞掉"的状态
-      suppressClickUntil = Date.now() + 300
+      suppressClickUntil = Date.now() + 150   // 2026-10-17 修：真拖完才短暂吞一下，300ms 太长容易连正常点击一起吞掉
     }
     pill.addEventListener('mousedown', dragStart)
     pill.addEventListener('touchstart', dragStart)

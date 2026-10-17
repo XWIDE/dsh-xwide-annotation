@@ -1,4 +1,18 @@
-﻿# Changelog
+# Changelog
+
+## [1.5.1] - 2026-10-17 (自检角标交互修复)
+
+### 修复（用户报「点开给我看明细，他点不了」）
+- **根因**：胶囊的拖动判定阈值只有 3px —— 鼠标/触控板从按下到抬起，手抖就超过 3px，于是每次普通点击都被判成“拖动”，紧接的 `click` 被 `suppressClickUntil`（300ms 窗）吞掉 → 表现就是**怎么点都没反应**。阈值改 8px、抑制窗 300→150ms（client.js:4887、4901）。
+- **双击**：文件头注释承诺「双击 = 本次隐藏」，代码却写成切换展开（等于白点）。现按注释实现：置会话内隐藏标志 `hideThisSession`（**不写 localStorage，刷新就回来**），`hiddenBySwitch()` 优先认它（client.js:4739、4748、4865）。
+- **× 收成小圆点后点圆点**：旧写法只 `setCollapsed(false)`，在自检 OK（安静模式）时一点就把角标整个点没、找不回来。现展开时同时置 `expanded=true` 并立刻重跑自检（client.js:4828）。
+- **胶囊与圆点显式 `pointer-events:auto`**，不吃继承来的 `none`（client.js:4796、4820）。
+
+### 判定器
+- `_annot_extract\badge_click_sim.mjs`：**从真 client.js 原样抽出角标 IIFE**，用最小 DOM/事件桩在 Node 里跑起来，模拟「手抖点击 / 再点 / 真拖 40px / 双击 / × 收起后点圆点 / pointer-events」共 13 条断言 → 改后 `RESULT: ALL PASS (13)`；对**改前备份**跑同一脚本 → `RESULT: FAIL`，6 条挂掉（含「手抖 5px 的普通点击 → 面板展开」＝用户报的症状），证明判据有效、不是自欺。
+- 语法：每次写入均过 `node --check`（走 `dsh_safe_write`，逐次自动 `.bak`）；装载：`dsh_plugin_check` → `OK dsh-annotation … 装载自检通过`。
+- 部署（**第一次做坏了，已纠正**）：第一次把 dev 副本**整份覆盖**进 npm 装的 `@changfenhuang\dsh-annotation`；dev 副本在 1.5.0 已把 bundle 自注册 id 改名成 `dsh-xwide-annotation` → 与那份包期望的 id `@changfenhuang/dsh-annotation` 不匹配 → **DSH 启动期插件树加载失败、软件起不来**（用户把该插件停用才启动）。已把生效位置恢复成 **1.4.11 原件 + 同样的 7 处角标补丁**（`id:` / `exports.name` / 页脚全部保持 `@changfenhuang/dsh-annotation`），写后 SHA1 `F78A79C8A4AA5979482D18308F240E24EE892CAD`；改前基线 `5AC91B8AA28C05AFBF4296942F89BF8B95BFF8A4` 存在 `client.js.bak-2026-10-17T14-33-22-754Z`。
+- **教训（写进本机工具箱 §6.8）**：dev 副本（改名插件）**绝不能整份覆盖** npm 装的那份 —— 覆盖前先比对两份的注册行 `id: '…'` / `exports.name = '…'`；装载自检那句「yml 的 id 与 package.json 的 name 不一致」在 node_modules 装法下**必须当真**，我这次把它当噪音了。
 
 ## [1.5.0] - 2026-10-17 (dsh-xwide-annotation)
 
