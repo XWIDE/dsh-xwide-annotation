@@ -1,7 +1,9 @@
 name: Publish to npm
 
 # 用 GitHub OIDC 做 npm Trusted Publishing：不需要 NPM_TOKEN，也不受 npm 的 2FA 发布政策拦。
-# 首次运行会在 npm 侧生成一个「pending publisher」，需要包主在 npmjs.com 上点一次批准，然后重跑即可发布。
+# ⚠️ npm 没有 pending publisher：**新包不能靠 OIDC 首发**（trusted publishing 要求包已存在）。
+# 首发要本机 `npm login` + `npm publish`（账号需 2FA），或 `npm stage publish`（npm>=11.15）后在网页用 2FA 批准。
+# 包一旦存在并配好 publisher，之后每个 tag 都由本 workflow 自动发。
 
 on:
   push:
