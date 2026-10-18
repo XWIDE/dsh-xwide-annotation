@@ -144,6 +144,7 @@ Environments without a service manager (e.g. some containers) often need **no re
 
 | Version | Highlights |
 |---|---|
+| **v1.5.x** — this fork, current release **v1.5.5** | Color studio + annotation outline; `@` quote picker; self-check badge interactions; high-contrast dialog text; markers drawn on the assistant source row |
 | v1.4.x | Locale-aware: zh/en UI copy and annotation protocol block, live switch via DSH `locale` service |
 | v1.3.x | Numbered reply correspondence: format-instruction injection + hoverable `Annotation N:` chips (TreeWalker snapshot fix) |
 | v1.2.x | Hidden annotation block in bubble: MutationObserver microtask zero-flicker + polling fallback + historical-message repair |
@@ -162,7 +163,7 @@ MIT
 
 ## Local upgrade (derivative work)
 
-**dsh-xwide-annotation v1.5.0** (2026-10-16) — a derivative work based on
+**dsh-xwide-annotation v1.5.0** (2026-10-16; current release **v1.5.5**, 2026-10-18) — a derivative work based on
 [@changfenhuang/dsh-annotation](https://github.com/omdsh-dev/dsh-annotation) **v1.4.11**
 (by **omdsh-dev**, MIT). The upstream notice and MIT terms are retained verbatim
 (see [LICENSE](./LICENSE)). This upgrade adds:

@@ -144,6 +144,7 @@ systemctl --user restart dsh-web
 
 | 版本 | 内容 |
 |---|---|
+| **v1.5.x**（本衍生版，当前发布 **v1.5.5**） | 配色工作室 + 批注大纲；`@` 引文引用；自检角标交互修复；弹窗高对比文字；标记画在助手原文行 |
 | v1.4.x | 语言跟随：zh/en UI 文案与批注协议块，经 DSH `locale` 服务实时切换 |
 | v1.3.x | 回复逐条对照：格式指令注入 + 「Annotation N：」可悬浮芯片（TreeWalker 快照修复） |
 | v1.2.x | 气泡隐藏批注块：MutationObserver 微任务零闪烁 + 轮询兜底 + 历史消息修复 |
@@ -162,7 +163,7 @@ MIT
 
 ## 本地升级说明（衍生作品）
 
-**dsh-xwide-annotation v1.5.0**（2026-10-16）—— 基于 [@changfenhuang/dsh-annotation](https://github.com/omdsh-dev/dsh-annotation) **v1.4.11**（作者 **omdsh-dev**，MIT）的衍生作品；**原作者署名与 MIT 条款原样保留**（见 [LICENSE](./LICENSE)）。本升级新增：
+**dsh-xwide-annotation v1.5.0**（衍生版起点 2026-10-16；当前发布版本 **v1.5.5**，2026-10-18）—— 基于 [@changfenhuang/dsh-annotation](https://github.com/omdsh-dev/dsh-annotation) **v1.4.11**（作者 **omdsh-dev**，MIT）的衍生作品；**原作者署名与 MIT 条款原样保留**（见 [LICENSE](./LICENSE)）。本升级新增：
 
 - **配色工作室**：小圆钮选色 / 4 套荧光预设 / 自定义取色 / `Alt+Shift+C` 循环切色；圆钮可拖动并记住位置。
 - **批注大纲列表**：列出当前对话全部批注、编号按序配色（1 黄 / 2 红 / 3 绿…），点击跳转到原句并高亮。

@@ -1,7 +1,7 @@
 # 使用说明 · dsh-xwide-annotation
 
 > 面向使用者的操作手册。安装步骤见 [README.zh-CN.md](../README.zh-CN.md#安装官方-bundle-路径--唯一)；这里是**装好之后怎么用**。
-> 适用版本：**v1.5.0**（X-WIDE 衍生版，基于上游 `@changfenhuang/dsh-annotation` v1.4.11，MIT）。
+> 适用版本：**v1.5.5**（X-WIDE 衍生版，基于上游 `@changfenhuang/dsh-annotation` v1.4.11，MIT）。
 
 ---
 
@@ -50,7 +50,7 @@
 - **「一键清空全部」= 二次确认**：会先弹「⚠️ 确定清空全部 N 条批注吗？清空后大纲里就不再显示，且不可撤销。」——确认后**不可撤销**。
 - **按会话隔离**（v1.5.0 修复）：在 A 对话清空，不会影响 B 对话里的同名文字批注。
 
-> 截图页脚显示 `dsh-annot-pro v1.4.11+annot-pro.1` 是**本机旧版界面**；发布版 v1.5.0 的页脚已改为 `dsh-xwide-annotation v1.5.0` 并指向本仓库。
+> 下面这几张是**旧版界面截图**（页脚写 `dsh-annot-pro v1.4.11+annot-pro.1`），保留作功能对照；当前版本的界面截图见仓库首页画廊与 [screenshots.json](../screenshots.json)。发布版页脚已随版本更新，现在显示 `dsh-xwide-annotation v1.5.5`。
 
 ---
 
