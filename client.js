@@ -1191,7 +1191,7 @@ window.__ModuleLoader__.load({
           // 用户 2026-10-16：「到底是什么，让人能看得清」——先把这盘怎么用写出来。
           var hint = document.createElement('div')
           hint.textContent = '拖动选色 · 也可直接敲 16 进制 · 选完点「确定」'
-          hint.style.cssText = 'font-size:12px;line-height:1.5;opacity:.85;margin-bottom:9px;'
+          hint.style.cssText = 'font-size:12px;line-height:1.5;color:#cfcfcf;margin-bottom:9px;'
           wrap.appendChild(hint)
           var sv = document.createElement('div')
           var hue = document.createElement('div')
@@ -1215,10 +1215,10 @@ window.__ModuleLoader__.load({
           hexIn.title = '也可以直接敲 16 进制色值，例如 #ff63c5'
           hexIn.style.cssText = 'width:auto;flex:1 1 auto;min-width:0;padding:7px 9px;border-radius:8px;font-size:13px;font-weight:600;'
             + 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;'
-            + 'border:1px solid var(--dsw-alias-border-inverted,#444);background:transparent;color:inherit;'
+            + 'border:1px solid var(--dsw-alias-border-inverted,#444);background:rgba(127,127,127,.14);color:#eaeaea;'
           // 原来 flex:1 1 auto + 10px，在 224px 面板里被挤成「21 G194 B180」（截图里被切掉）。
           // 改成不收缩 + 12px，面板同时加宽到 280px。
-          rgb.style.cssText = 'font-size:12px;opacity:.9;flex:0 0 auto;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;'
+          rgb.style.cssText = 'font-size:12px;color:#cfcfcf;flex:0 0 auto;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;'
           function curHex() { return pkHexFromHsv(pkH, pkS, pkV) }
           function paint(keepInput) {
             var hx = curHex()
@@ -1276,12 +1276,12 @@ window.__ModuleLoader__.load({
           btns.style.cssText = 'display:flex;gap:9px;margin-top:10px;'
           var noBtn = document.createElement('button')
           noBtn.textContent = '取消'
-          noBtn.style.cssText = 'flex:1 1 0;padding:9px 10px;border-radius:9px;cursor:pointer;font-size:13px;'
-            + 'border:1px solid var(--dsw-alias-border-inverted,#444);background:transparent;color:inherit;'
+          noBtn.style.cssText = 'flex:1 1 0;padding:9px 10px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:600;color:#eaeaea;'
+            + 'border:1px solid var(--dsw-alias-border-inverted,#444);background:rgba(127,127,127,.14);'
           var okBtn = document.createElement('button')
           okBtn.textContent = '确定'
           okBtn.style.cssText = 'flex:1 1 0;padding:9px 10px;border-radius:9px;cursor:pointer;font-size:13px;'
-            + 'font-weight:600;border:1px solid #3b82f6;background:#3b82f6;color:#fff;'
+            + 'font-weight:600;border:1px solid #2563eb;background:#2563eb;color:#fff;'
           // 「确定 / 取消」由调用方决定：🎨 面板走 set()+addCustom()；
           // 批注卡片里的配色行走 bindToCard()（把颜色记到那一条批注身上）。
           okBtn.addEventListener('click', function (e) {
@@ -1359,7 +1359,7 @@ window.__ModuleLoader__.load({
           if (customs.length > 0) {
             var clbl = document.createElement('div')
             clbl.textContent = '我的颜色（右键删除）'
-            clbl.style.cssText = 'font-size:12px;opacity:.8;margin:0 0 8px;'
+            clbl.style.cssText = 'font-size:12px;color:#cfcfcf;margin:0 0 8px;'
             panel.appendChild(clbl)
             var crow = document.createElement('div')
             crow.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;'
@@ -1941,7 +1941,7 @@ window.__ModuleLoader__.load({
             ei.value = editingItem.note
             ei.placeholder = '批注内容（回车保存，Esc 取消）'
             ei.style.cssText = 'flex:1 1 auto;min-width:0;padding:4px 6px;border-radius:6px;'
-              + 'border:1px solid var(--dsw-alias-border-inverted,#444);background:transparent;color:inherit;font-size:12px;'
+              + 'border:1px solid var(--dsw-alias-border-inverted,#444);background:rgba(127,127,127,.14);color:#eaeaea;font-size:12px;'
             var okb = document.createElement('button')
             okb.textContent = '保存'
             okb.style.cssText = 'padding:8px 14px;border-radius:6px;cursor:pointer;font-size:12px;'
@@ -1963,7 +1963,7 @@ window.__ModuleLoader__.load({
           if (items.length === 0) {
             var empty = document.createElement('div')
             empty.textContent = '本对话暂无批注'
-            empty.style.cssText = 'opacity:.6;padding:6px 0;'
+            empty.style.cssText = 'color:#bdbdbd;padding:6px 0;'
             listPanel.appendChild(empty)
             return
           }
@@ -1989,14 +1989,14 @@ window.__ModuleLoader__.load({
               if (it.note) {
                 var nt = document.createElement('div')
                 nt.textContent = '批注：' + it.note
-                nt.style.cssText = 'opacity:.7;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'
+                nt.style.cssText = 'color:#cfcfcf;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'
                 body.appendChild(nt)
               }
               rowEl.appendChild(body)
               if (it.pending) {
                 var pt = document.createElement('span')
                 pt.textContent = '未发送'
-                pt.style.cssText = 'flex:0 0 auto;font-size:12px;opacity:.85;border:1px solid currentColor;border-radius:6px;padding:0 6px;'
+                pt.style.cssText = 'flex:0 0 auto;font-size:12px;color:#cfcfcf;border:1px solid currentColor;border-radius:6px;padding:0 6px;'
                 rowEl.appendChild(pt)
               }
               var acts = document.createElement('div')
@@ -2163,7 +2163,7 @@ window.__ModuleLoader__.load({
           var lbl = document.createElement('span')
           lbl.className = 'dshap-lbl'
           lbl.textContent = '颜色'
-          lbl.style.cssText = 'font-size:13px;opacity:.85;font-weight:600;'
+          lbl.style.cssText = 'font-size:13px;color:#eaeaea;font-weight:600;'
           wrap.appendChild(lbl)
           var cur = readColor()
           function markOn(hex) {
@@ -2263,7 +2263,7 @@ window.__ModuleLoader__.load({
           if (mentionItems.length === 0) {
             var e0 = document.createElement('div')
             e0.textContent = '暂无批注可引用'
-            e0.style.cssText = 'opacity:.6;padding:4px;'
+            e0.style.cssText = 'color:#bdbdbd;padding:4px;'
             mentionPanel.appendChild(e0)
             return
           }
