@@ -15,11 +15,17 @@
 
 <div align="center">
 
-**当前版本界面（v1.5.5）**
+**当前版本界面（v1.5.6）**
 
 ![两个悬浮圆钮：配色工作室 🎨 与批注大纲 📋](./docs/img/10-floating-pills.png)
 
 ![批注大纲列表——按编号列出本对话的全部批注](./docs/img/11-outline-strip.png)
+
+![批注配色面板：预设色、我的颜色、自检开关与诊断按钮](./docs/img/12-color-studio-panel.png)
+
+![自检浮标：胶囊上带实时事件计数](./docs/img/13-badge-pill-live.png)
+
+![自检明细：挂载 / 样式 / 对比度 / 命中区 全部数字](./docs/img/14-selftest-detail.png)
 
 </div>
 

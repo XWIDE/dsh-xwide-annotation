@@ -1414,13 +1414,95 @@ window.__ModuleLoader__.load({
           panel.appendChild(reset)
           var foot = document.createElement('div')
           foot.style.cssText = 'margin-top:10px;padding-top:8px;border-top:1px solid rgba(127,127,127,.25);font-size:12px;line-height:1.7;color:var(--dsw-alias-label-tertiary,#999);'
-          foot.innerHTML = 'dsh-xwide-annotation <b>v1.5.5</b> · 2026-10-18<br>'
+          foot.innerHTML = 'dsh-xwide-annotation <b>v1.5.6</b> · 2026-10-18<br>'
             + '原作者：<a href="https://github.com/omdsh-dev/dsh-annotation" target="_blank" rel="noreferrer">omdsh-dev · dsh-annotation v1.4.11（MIT）</a>'
             + ' · 发布页：<a href="https://github.com/XWIDE/dsh-xwide-annotation" target="_blank" rel="noreferrer">github.com/XWIDE/dsh-xwide-annotation</a><br>'
             + '<a href="https://github.com/XWIDE" target="_blank" rel="noreferrer"><b>X-WIDE</b></a> · '
             + '<a href="https://space.bilibili.com/374064919" target="_blank" rel="noreferrer">B 站 374064919</a> · '
             + '<a href="mailto:xiupk@sina.com.cn">xiupk@sina.com.cn</a>'
-          panel.appendChild(foot)
+          // 自检角标开关（默认关）：与插件页那行「配置」共用同一个 localStorage 键。
+          // 勾上立刻显示/隐藏 —— 角标那段监听同名事件，所以不用刷新页面。
+          var badgeRow = document.createElement('label')
+          badgeRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:#cfcfcf;cursor:pointer;'
+          var badgeBox = document.createElement('input')
+          badgeBox.type = 'checkbox'
+          try { badgeBox.checked = window.localStorage.getItem('dshap-badge-visible') === '1' } catch (e1) { /* ignore */ }
+          badgeBox.addEventListener('change', function () {
+            try { window.localStorage.setItem('dshap-badge-visible', badgeBox.checked ? '1' : '0') } catch (e2) { /* ignore */ }
+            try { window.dispatchEvent(new Event('dshap-badge-visible-change')) } catch (e3) { /* ignore */ }
+          })
+          badgeRow.appendChild(badgeBox)
+          badgeRow.appendChild(document.createTextNode('显示自检角标（诊断用：正文画不出标注时看明细）'))
+          panel.appendChild(badgeRow)
+          // 自检状态行（第 6 次修 · 不依赖浮层）：直接在面板里读 __dshapSelfTest()。
+           // 为什么搬进面板：浮层角标在真实页面里收不到指针事件（实测计数 #0 不涨），
+           // 而面板是宿主正常渲染的节点，点击与读数都可靠 → 诊断价值保留、交互风险清零。
+           var selfRow = document.createElement('div')
+           selfRow.style.cssText = 'margin-top:10px;font-size:13px;line-height:1.7;color:#eaeaea;'
+           function paintSelf() {
+             try {
+               if (typeof window.__dshapSelfTest !== 'function') { selfRow.textContent = '自检：函数不在（插件没加载／页面没刷新）'; return }
+               var r = window.__dshapSelfTest()
+               var pr = r.problems || []
+               var n = (window.__dshapBadgeClicks || 0)
+               selfRow.textContent = (r.ok ? '✅ 自检 OK' : '⚠️ 自检 ' + pr.length + ' 个问题：' + pr.slice(0, 2).join('；'))
+                 + '（浮层收到事件 ' + n + ' 次' + (n === 0 ? '＝浮层被挡住了，看本行就够' : '') + '）'
+             } catch (eSelf) { selfRow.textContent = '自检：跑挂了 ' + (eSelf && eSelf.message) }
+           }
+           var selfBtn = document.createElement('button')
+           selfBtn.type = 'button'
+           selfBtn.textContent = '重跑自检'
+           selfBtn.style.cssText = 'margin-top:6px;padding:6px 12px;font-size:13px;border-radius:6px;border:1px solid rgba(127,127,127,.45);background:rgba(127,127,127,.14);color:#eaeaea;cursor:pointer;'
+           selfBtn.addEventListener('click', paintSelf)
+           // 遮挡检测（本机没有 DevTools，量测必须做进界面里）：用 elementsFromPoint 打印「谁压在浮层上面」
+           var ocRow = document.createElement('div')
+           ocRow.style.cssText = 'margin-top:8px;font-size:13px;line-height:1.7;color:#eaeaea;word-break:break-all;'
+           var ocBtn = document.createElement('button')
+           ocBtn.type = 'button'
+           ocBtn.textContent = '查遮挡（角标点不动时点这个）'
+           ocBtn.style.cssText = 'margin-top:6px;padding:6px 12px;font-size:13px;border-radius:6px;border:1px solid rgba(127,127,127,.45);background:rgba(127,127,127,.14);color:#eaeaea;cursor:pointer;'
+           function tagOf(e) {
+             if (!e) return '(空)'
+             var cs = window.getComputedStyle ? window.getComputedStyle(e) : {}
+             return e.tagName + (e.id ? '#' + e.id : '') + (e.className ? '.' + String(e.className).split(/\s+/).slice(0, 3).join('.') : '') + ' z=' + (cs.zIndex || 'auto') + ' pe=' + (cs.pointerEvents || '?')
+           }
+           ocBtn.addEventListener('click', function () {
+             try {
+               var b = null
+               try { if (window.__dshapBadgeEl) b = window.__dshapBadgeEl() } catch (eG) { b = null }
+               var dups = []
+               try { dups = Array.prototype.slice.call(document.querySelectorAll('#dshap-selftest-badge')) } catch (eD) { dups = [] }
+               if (!b) b = document.getElementById('dshap-selftest-badge')
+               if (!b) { ocRow.textContent = '遮挡检测：找不到角标元素（开关没打开？或本机跑的是旧版）'; return }
+               var r = b.getBoundingClientRect()
+               var cs = window.getComputedStyle ? window.getComputedStyle(b) : {}
+               var sameRoot = '?'
+               try { sameRoot = (b.getRootNode && ocBtn.getRootNode) ? String(b.getRootNode() === ocBtn.getRootNode()) : '?' } catch (eR) { sameRoot = '?' }
+               var info = '同名节点=' + dups.length + '｜清掉的重影=' + (window.__dshapBadgePurged || 0) + '｜display=' + (cs.display || '?') + '｜与面板同根=' + sameRoot + '｜矩形=' + Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + '×' + Math.round(r.height)
+               if (!r.width || !r.height) { ocRow.textContent = '⚠️ 量到的角标是零尺寸（这一份没参与布局）→ ' + info; return }
+               if (r.top < 64) { ocRow.textContent = '⚠️ 顶边 y=' + Math.round(r.top) + ' 落在窗口标题栏区（原生标题栏吃掉点击，网页收不到事件）→ 我已把它挪到下方（v2.0）' ; return }
+               var cx = r.left + r.width / 2, cy = r.top + r.height / 2
+               var list = (document.elementsFromPoint ? document.elementsFromPoint(cx, cy) : [document.elementFromPoint(cx, cy)]).slice(0, 4)
+               var top = list[0]
+               ocRow.textContent = (b === top || b.contains(top))
+                 ? '✅ 浮层在最上面，理论上能点到｜' + info + '｜命中=' + tagOf(top)
+                 : '⚠️ 被挡住：最上面是 ' + tagOf(top) + '｜往下 ' + list.map(tagOf).join(' → ')
+                 + '｜' + info
+             } catch (eOc) { ocRow.textContent = '遮挡检测跑挂了：' + (eOc && eOc.message) }
+           })
+           panel.appendChild(selfRow)
+           panel.appendChild(selfBtn)
+           panel.appendChild(ocBtn)
+           panel.appendChild(ocRow)
+           paintSelf()
+           panel.appendChild(selfRow)
+           panel.appendChild(selfBtn)
+           var hintRow = document.createElement('div')
+           hintRow.id = 'dshap-badge-hint'
+           hintRow.style.cssText = 'margin-top:8px;font-size:13px;line-height:1.7;color:#cfcfcf;'
+           hintRow.textContent = 'v2.0：实测你的浮标停在**顶边 y=0**——那是窗口标题栏区，点击被系统吃掉、网页永远收不到事件（所以计数恒 #0）。现在存档位置自动作废并回到右下角，拖动也不许再进顶部 64px 以内。'
+           panel.appendChild(hintRow)
+           panel.appendChild(foot)
         }
         // 选色后**立即上色**（含正文编号牌）。必须显式调 applyMarkerState()：
         // 编号牌的颜色是 inline 写在元素上的，不显式刷就要等下一次自动刷新（最多 2.5s），
@@ -2053,7 +2135,7 @@ window.__ModuleLoader__.load({
           }
           var lf = document.createElement('div')
           lf.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(127,127,127,.25);font-size:12px;line-height:1.7;color:var(--dsw-alias-label-tertiary,#999);'
-          lf.innerHTML = 'dsh-xwide-annotation <b>v1.5.5</b> · 2026-10-18<br>'
+          lf.innerHTML = 'dsh-xwide-annotation <b>v1.5.6</b> · 2026-10-18<br>'
             + '原作者 <a href="https://github.com/omdsh-dev/dsh-annotation" target="_blank" rel="noreferrer">omdsh-dev（MIT）</a>'
             + ' · 发布页：<a href="https://github.com/XWIDE/dsh-xwide-annotation" target="_blank" rel="noreferrer">github.com/XWIDE/dsh-xwide-annotation</a><br>'
             + '升级 <a href="https://github.com/XWIDE" target="_blank" rel="noreferrer"><b>X-WIDE</b></a> · '
@@ -4756,7 +4838,7 @@ window.__ModuleLoader__.load({
   'use strict'
   if (typeof window === 'undefined' || typeof document === 'undefined') return
   if (window.__dshapSelftestBadge) return
-  window.__dshapSelftestBadge = '1.2'
+  window.__dshapSelftestBadge = '2.0'   // 第 10 版：顶边 y<64 落在窗口标题栏区 → 点击被系统吃掉（rect=1050,0 而计数恒 0）；存档位置与拖动都避开该区   // 第 7 版：面板内「查遮挡」（本机无 DevTools）   // 第 6 版：自检明细搬进面板（不依赖浮层）   // 第 5 版：交互改在 window 捕获相   // 2026-10-18：加大命中区 + 圆点可拖 + 箭头自绑 + 事件探针
 
   var ID = 'dshap-selftest-badge'
   var POS_KEY = 'dshap-badge-pos'
@@ -4773,7 +4855,8 @@ window.__ModuleLoader__.load({
   // 开关不用刷新页面 —— 开关插件会派发 dshap-badge-visible-change 事件，这里立刻响应。
   function hiddenBySwitch() {
     if (hideThisSession) return true   // 2026-10-17 修：双击隐藏的会话内状态
-    try { return !!(window.localStorage && window.localStorage.getItem(VIS_KEY) === '0') } catch (e) { return false }
+    // 2026-10-18 用户要求：默认**不显示**，要在插件页「配置」里打开才露面（打开＝写 '1'，关掉＝写 '0'）
+    try { return !!(window.localStorage && window.localStorage.getItem(VIS_KEY) !== '1') } catch (e) { return true }
   }
 
   function applyVisible() {
@@ -4798,39 +4881,66 @@ window.__ModuleLoader__.load({
 
   function build() {
     if (box) return box
-    if (find(ID)) { box = find(ID); pill = find(ID + '-pill'); panel = find(ID + '-panel'); dot = find(ID + '-dot'); if (dot) return box }
+    if (find(ID)) {
+      // 2026-10-18 第 9 版（真根因）：页面上有**同 id 的重影**。`getElementById` 只返回文档里第一个，
+      //   旧写法也只用它摘**一个** → 后面几代 bundle 留下的同名浮层全都留着：用户看见并点的是**上一代那个没有事件的死壳**，
+      //   而面板里「查遮挡」量到的却是另一个隐藏副本（实测 `角标矩形=0,0 0×0` ＝ 零尺寸＝没参与布局的节点）。
+      //   做法＝用 querySelectorAll 把**所有**同名节点一次清干净，再按当前代码重建一份（位置从 localStorage 读，不跳位）。
+      var purged = 0
+      try {
+        var dups = document.querySelectorAll('#' + ID + ', #' + ID + '-dot')
+        for (var di = 0; di < dups.length; di++) {
+          try { if (dups[di] && dups[di].parentNode) { dups[di].parentNode.removeChild(dups[di]); purged++ } } catch (eD) { /* ignore */ }
+        }
+      } catch (eQ) { /* ignore */ }
+      try { window.__dshapBadgePurged = purged } catch (eP) { /* ignore */ }
+      box = null; pill = null; panel = null; dot = null; label = null; chev = null; dotMark = null
+    }
     if (!document.body && !document.documentElement) return null
     box = document.createElement('div'); box.id = ID
+    try { window.__dshapBadgeEl = function () { return box } } catch (eBE) { /* ignore */ }   // 面板里的「查遮挡」要用**当前这一代**的元素量，别用 getElementById（会量到重影）
     var saved = null
     try { saved = JSON.parse((window.localStorage && window.localStorage.getItem(POS_KEY)) || 'null') } catch (e) { saved = null }
     imp(box, 'position', 'fixed')
-    if (saved && typeof saved.right === 'number' && typeof saved.top === 'number') {
+    // v2.0 关键：顶边 y<64 落在**窗口原生标题栏区**——那里的点击被系统吃掉、网页永远收不到（实测 rect=1050,0 → 计数恒 #0）
+    // 所以这种存档位置视为无效，回默认右下角；拖动时也不许再进这个区
+    if (saved && typeof saved.right === 'number' && typeof saved.top === 'number' && saved.top >= 64) {
       imp(box, 'right', saved.right + 'px'); imp(box, 'top', saved.top + 'px')    // 拖过的位置（贴右 + 贴顶）
-    } else if (saved && typeof saved.left === 'number' && typeof saved.top === 'number') {
+    } else if (saved && typeof saved.left === 'number' && typeof saved.top === 'number' && saved.top >= 64) {
       imp(box, 'left', saved.left + 'px'); imp(box, 'top', saved.top + 'px')      // 旧格式兼容
     } else {
       imp(box, 'right', '16px'); imp(box, 'bottom', '16px')   // 默认右下角：左下角会压住侧栏底部的按钮
     }
     try { if (saved && saved.collapsed) collapsed = true } catch (e0) { /* ignore */ }
-    imp(box, 'z-index', '2147483000'); imp(box, 'display', 'flex'); imp(box, 'flex-direction', 'column')
-    imp(box, 'pointer-events', 'auto')   // 防呆：绝不允许自己被任何继承的 none 吃掉点击
+    imp(box, 'z-index', '2147483646'); imp(box, 'display', 'flex'); imp(box, 'flex-direction', 'column')
+    imp(box, 'pointer-events', 'auto')   // 第 9 版：重影清除后恢复可交互（上一版临时改过 none）
     imp(box, 'align-items', 'flex-end'); imp(box, 'gap', '6px')
-    imp(box, 'font', '12px/1.45 system-ui, "Microsoft YaHei", sans-serif')
+    imp(box, 'font', '13px/1.55 system-ui, "Microsoft YaHei", sans-serif')   // 2026-10-18 用户要求「稍微做大一点」：12px → 13px
     imp(box, 'transition', 'opacity .25s')
 
     pill = document.createElement('div'); pill.id = ID + '-pill'
-    imp(pill, 'padding', '4px 10px'); imp(pill, 'border-radius', '999px'); imp(pill, 'cursor', 'pointer')
-    imp(pill, 'pointer-events', 'auto')   // 2026-10-17 修：胶囊自己也要显式可点，不吃继承的 none
+    imp(pill, 'padding', '7px 14px'); imp(pill, 'min-height', '30px'); imp(pill, 'border-radius', '999px'); imp(pill, 'cursor', 'move')   // 2026-10-18：胶囊加大（命中区 ≥30px 高），光标改成 move 表明可拖
+    imp(pill, 'pointer-events', 'auto')   // 第 9 版：恢复可点可拖
     imp(pill, 'border', '1px solid #666'); imp(pill, 'background', 'rgba(24,24,26,.94)'); imp(pill, 'color', '#e5e5e5')
     imp(pill, 'box-shadow', '0 2px 10px rgba(0,0,0,.4)'); imp(pill, 'user-select', 'none'); imp(pill, 'white-space', 'nowrap')
     // 文字放进一个子 span：直接改 pill.textContent 会把 × 那个子元素一起抹掉（踩过一次）
     label = document.createElement('span'); label.textContent = '● 自检 …'; pill.appendChild(label)
     // 2026-10-16 ⑤ 用户批注：「加个小箭头/详情字样，让人一眼知道能点开」——只加一个箭头，不改原有布局
-    chev = document.createElement('span'); chev.textContent = '▾'
-    imp(chev, 'margin-left', '6px'); imp(chev, 'opacity', '.75')
+    chev = document.createElement('span'); chev.id = ID + '-chev'; chev.textContent = '▾'
+    // 2026-10-18 用户报「那个箭头也没有用」：箭头原来只是个装饰 span（靠冒泡给胶囊），
+    // 现在给它自己的 id、≥28px 命中区，并绑自己的点击（stopPropagation，避免和胶囊各切一次）
+    imp(chev, 'margin-left', '8px'); imp(chev, 'opacity', '.85')
+    imp(chev, 'display', 'inline-block'); imp(chev, 'min-width', '28px'); imp(chev, 'min-height', '26px')
+    imp(chev, 'line-height', '26px'); imp(chev, 'text-align', 'center'); imp(chev, 'font-size', '14px')
+    imp(chev, 'cursor', 'pointer'); imp(chev, 'pointer-events', 'auto')   // 第 9 版：箭头恢复可点
     try { chev.title = '展开/收起明细' } catch (eC1) {}
+    chev.addEventListener('click', function (ev) {
+      try { ev.stopPropagation() } catch (eC2) {}
+      if (typeof suppressClickUntil === 'number' && suppressClickUntil && Date.now() < suppressClickUntil) return
+      expanded = !expanded; run(); applyVisible()
+    })
     pill.appendChild(chev)
-    try { pill.title = '单击=看明细（箭头 ▾ 会变成 ▴）；× 收起成小圆点；按住可拖到任意角落' } catch (e) {}
+    try { pill.title = 'v1.9：单击=看明细｜×=收成小圆点｜按住可拖到任意角落（重影已清）' } catch (e) {}
     // 2026-10-16 B：只有「刚拖完那一下」的 click 被丢掉（300ms 窗口），不再用常驻的 moved 标志 ——
     //   旧写法把 moved 留着不清，拖过一次之后**第一次点击会被永久吞掉**，看起来就是「点不动」。
     pill.addEventListener('click', function () {
@@ -4843,23 +4953,156 @@ window.__ModuleLoader__.load({
     dot = document.createElement('div'); dot.id = ID + '-dot'
     // 2026-10-16 ⑤ 用户批注：「收起成圆点后，圆点上也留个小标记」——
     //   圆点里放一个状态符号（●=OK / !=有问题），同时把命中区做成 32px（尺子/02：命中区 ≥32px）
-    imp(dot, 'display', 'none'); imp(dot, 'width', '32px'); imp(dot, 'height', '32px'); imp(dot, 'border-radius', '50%')
-    imp(dot, 'pointer-events', 'auto')   // 2026-10-17 修：圆点显式可点
+    imp(dot, 'display', 'none'); imp(dot, 'width', '40px'); imp(dot, 'height', '40px'); imp(dot, 'border-radius', '50%')   // 2026-10-18：圆点 32 → 40px，好点也好拖
+    imp(dot, 'pointer-events', 'auto')   // 第 9 版：圆点恢复可点可拖
     imp(dot, 'background', 'rgba(24,24,26,.92)'); imp(dot, 'border', '1px solid #666')
     imp(dot, 'box-shadow', '0 2px 8px rgba(0,0,0,.4)'); imp(dot, 'cursor', 'pointer'); imp(dot, 'user-select', 'none')
     imp(dot, 'align-items', 'center'); imp(dot, 'justify-content', 'center')
     dotMark = document.createElement('span'); dotMark.textContent = '●'
-    imp(dotMark, 'font-size', '13px'); imp(dotMark, 'line-height', '1'); imp(dotMark, 'color', '#22c55e')
+    imp(dotMark, 'font-size', '16px'); imp(dotMark, 'line-height', '1'); imp(dotMark, 'color', '#22c55e')
     dot.appendChild(dotMark)
-    try { dot.title = '批注自检（点一下展开）' } catch (e12) {}
-    dot.addEventListener('click', function () { expanded = true; setCollapsed(false); run() })   // 2026-10-17 修：点圆点=展开并立刻看结果（旧写法在自检 OK 时一点就把角标整个点没了）
+    // 2026-10-18 修：圆点**一建出来就是浮层**并按上次位置摆好（旧代码只在收起那一刻补坐标，
+    // 从 body 末尾的静态块冒出来 → 落在文档流末端，看不见也点不着）
+    imp(dot, 'position', 'fixed'); imp(dot, 'z-index', '2147483646')
+    if (saved && typeof saved.dotRight === 'number' && typeof saved.dotTop === 'number' && saved.dotTop >= 64) {   // v2.0：同上，圆点也不许停在标题栏区
+      imp(dot, 'right', saved.dotRight + 'px'); imp(dot, 'top', saved.dotTop + 'px'); imp(dot, 'left', 'auto'); imp(dot, 'bottom', 'auto')
+    } else { imp(dot, 'right', '16px'); imp(dot, 'bottom', '16px') }
+    try { dot.title = '批注自检（点一下展开；按住可拖到任意角落）' } catch (e12) {}
+    dot.addEventListener('click', function () {
+      if (typeof suppressClickUntil === 'number' && suppressClickUntil && Date.now() < suppressClickUntil) return
+      expanded = true; setCollapsed(false); run()
+    })   // 2026-10-17 修：点圆点=展开并立刻看结果（旧写法在自检 OK 时一点就把角标整个点没了）
+
+    // 2026-10-18 用户报「小圆点不能拖」：拖动以前只绑在胶囊上，圆点从来没绑过 → 给圆点自己一套拖动
+    var dDrag = false, dMoved = false, dsx = 0, dsy = 0, dRight = 16, dTop = 0
+    function pt(ev) { var t = ev.touches && ev.touches[0] ? ev.touches[0] : ev; return { x: t.clientX || 0, y: t.clientY || 0 } }
+    function dotStart(ev) {
+      var r = null
+      try { r = dot.getBoundingClientRect() } catch (eD1) { r = null }
+      if (!r || typeof r.right !== 'number' || typeof r.top !== 'number') return
+      dDrag = true; dMoved = false
+      var p = pt(ev); dsx = p.x; dsy = p.y; dRight = viewW() - r.right; dTop = r.top
+    }
+    function dotMove(ev) {
+      if (!dDrag) return
+      var p = pt(ev), dx = p.x - dsx, dy = p.y - dsy
+      if (Math.abs(dx) + Math.abs(dy) > 8) dMoved = true
+      if (!dMoved) return
+      imp(dot, 'right', Math.round(Math.max(0, Math.min(Math.max(0, viewW() - 44), dRight - dx))) + 'px'); imp(dot, 'left', 'auto')
+      imp(dot, 'top', Math.round(Math.max(64, Math.min(Math.max(64, viewH() - 44), dTop + dy))) + 'px'); imp(dot, 'bottom', 'auto')   // v2.0：顶边留 64px，避开窗口标题栏
+    }
+    function dotEnd() {
+      if (!dDrag) return
+      dDrag = false
+      if (!dMoved) return
+      suppressClickUntil = Date.now() + 150   // 拖完那一下不算点击
+      saveState()
+    }
+    dot.addEventListener('mousedown', dotStart); dot.addEventListener('touchstart', dotStart)
+    if (typeof document.addEventListener === 'function') {
+      document.addEventListener('mousemove', dotMove); document.addEventListener('mouseup', dotEnd)
+      document.addEventListener('touchmove', dotMove); document.addEventListener('touchend', dotEnd)
+    }
+
+    // 诊断探针（2026-10-18）：真的收到过几次按下/点击，写进 window.__dshapBadgeClicks
+    // —— 用户报「点不动」时能分清是「事件根本没到」（被上层挡住）还是「事件到了、处理没生效」。
+    function probe(ev) {
+      try {
+        window.__dshapBadgeClicks = (window.__dshapBadgeClicks || 0) + 1
+        var n = ev.target, tag = ''
+        try { tag = (n && (n.id || n.tagName)) || '?' } catch (eT) { tag = '?' }
+        window.__dshapBadgeLastEvent = ev.type + ' @' + tag
+        // 2026-10-18：把计数写进胶囊上**永远看得见**的小标签（不用点开面板就能读）
+        try { if (probeTag) probeTag.textContent = '#' + window.__dshapBadgeClicks + ' v2.0' } catch (eP3) {}
+      } catch (eP) { /* ignore */ }
+    }
+    box.addEventListener('pointerdown', probe, true); box.addEventListener('click', probe, true)
+    dot.addEventListener('pointerdown', probe, true); dot.addEventListener('click', probe, true)
+
+    // 2026-10-18（第 4 次修「点不动」）：**整套交互搬到 window 捕获相**。
+    // 病因：插件自己在 document 捕获相挂着三个 pointerdown 监听（:1539 / :2669 / :2915），
+    // 任何一处 stopPropagation，元素级的 mousedown/click 就永远收不到；DOM 桩测不出这条链。
+    // window 捕获相是整条链的最上游 —— 没有任何东西能挡在它前面，所以从这儿接管一定收得到。
+    var probeTag = null
+    var wDrag = false, wMoved = false, wPart = '', wsx = 0, wsy = 0, wRight = 0, wTop = 0
+    function hitPart(ev) {
+      var el = null
+      try { el = ev.target } catch (eH1) { return '' }
+      for (var i = 0; i < 7 && el; i++) {   // 向上找 7 层认 id，不用 closest('#id')（避开宿主差异）
+        var idn = ''
+        try { idn = el.id || '' } catch (eH2) { idn = '' }
+        if (idn === ID + '-close') return 'close'
+        if (idn === ID + '-chev') return 'chev'
+        if (idn === ID + '-dot') return 'dot'
+        if (idn === ID + '-pill') return 'pill'
+        if (idn === ID) return 'box'
+        el = el.parentNode
+      }
+      return ''
+    }
+    function wAction(part) {
+      if (part === 'close') setCollapsed(true)
+      else if (part === 'dot') { expanded = true; setCollapsed(false); run() }
+      else if (part === 'chev' || part === 'pill') { expanded = !expanded; run(); applyVisible() }
+    }
+    function wStart(ev) {
+      var part = hitPart(ev)
+      if (!part) return
+      probe(ev)
+      wPart = part; wDrag = true; wMoved = false
+      var p = pt(ev); wsx = p.x; wsy = p.y
+      var el = (part === 'dot') ? dot : box
+      var r = null
+      try { r = el.getBoundingClientRect() } catch (eW1) { r = null }
+      if (r && typeof r.right === 'number' && typeof r.top === 'number') { wRight = viewW() - r.right; wTop = r.top }
+    }
+    function wMove(ev) {
+      if (!wDrag) return
+      var p = pt(ev), dx = p.x - wsx, dy = p.y - wsy
+      if (Math.abs(dx) + Math.abs(dy) > 8) wMoved = true
+      if (!wMoved) return
+      var el = (wPart === 'dot') ? dot : box
+      var w = 44, h = 44
+      try { var rr = el.getBoundingClientRect(); w = Math.round(rr.width) || 44; h = Math.round(rr.height) || 44 } catch (eW2) {}
+      imp(el, 'right', Math.round(Math.max(0, Math.min(Math.max(0, viewW() - w), wRight - dx))) + 'px')
+      imp(el, 'left', 'auto'); imp(el, 'bottom', 'auto')
+      imp(el, 'top', Math.round(Math.max(64, Math.min(Math.max(64, viewH() - h), wTop + dy))) + 'px')   // v2.0：顶边留 64px，标题栏区点了没反应
+    }
+    function wEnd() {
+      if (!wDrag) return
+      wDrag = false
+      var part = wPart; wPart = ''
+      // 拖完那一下不算点击；动作已在此处完成 → 压住冒泡的 click，避免切换两次
+      suppressClickUntil = Date.now() + 250
+      if (wMoved) { saveState(); return }
+      wAction(part)
+    }
+    if (typeof window.addEventListener === 'function') {
+      window.addEventListener('pointerdown', wStart, true)
+      window.addEventListener('pointermove', wMove, true); window.addEventListener('pointerup', wEnd, true)
+      // 兼容只发 mouse / touch 事件的场景（Electron 老版本、触屏）
+      window.addEventListener('mousedown', function (ev) { if (!wDrag) wStart(ev) }, true)
+      window.addEventListener('mousemove', wMove, true); window.addEventListener('mouseup', wEnd, true)
+      window.addEventListener('touchstart', wStart, true); window.addEventListener('touchmove', wMove, true)
+      window.addEventListener('touchend', wEnd, true)
+    }
 
     var close = document.createElement('span')
-    imp(close, 'margin-left', '8px'); imp(close, 'padding', '0 4px'); imp(close, 'border-radius', '4px'); imp(close, 'opacity', '.8')
+    close.id = ID + '-close'
+    // 2026-10-18：× 的命中区从「padding 0 4px」的一小条做成 ≥28×26px（尺子/02 命中区要求）
+    imp(close, 'margin-left', '8px'); imp(close, 'display', 'inline-block'); imp(close, 'min-width', '28px'); imp(close, 'min-height', '26px')
+    imp(close, 'line-height', '26px'); imp(close, 'text-align', 'center'); imp(close, 'font-size', '16px')
+    imp(close, 'border-radius', '6px'); imp(close, 'opacity', '.85'); imp(close, 'cursor', 'pointer'); imp(close, 'pointer-events', 'auto')   // 第 9 版：× 恢复可点
     close.textContent = '\u00d7'
     try { close.title = '收起成小圆点（点圆点就展开回来）' } catch (e13) {}
     close.addEventListener('click', function (ev) { try { ev.stopPropagation() } catch (e14) {} setCollapsed(true) })
     pill.appendChild(close)
+    // 2026-10-18：胶囊上**永远看得见**的诊断小标签 —— 不用点开面板就能读「收到几次事件」，
+    // 用户报「点不动」时一眼能分清是「事件没到（被挡住）」还是「事件到了、处理没生效」。
+    probeTag = document.createElement('span'); probeTag.id = ID + '-probe'; probeTag.textContent = '#0 v2.0'
+    imp(probeTag, 'margin-left', '8px'); imp(probeTag, 'font-size', '12px'); imp(probeTag, 'opacity', '.7')
+    try { probeTag.title = '诊断：已收到几次指针事件。点几下胶囊，数字不动＝事件被上层挡住；在涨＝处理没生效' } catch (ePT) {}
+    pill.appendChild(probeTag)
 
     function currentPos() {
       var o = {}
@@ -4867,12 +5110,19 @@ window.__ModuleLoader__.load({
       return o
     }
     function saveState() {
-      try { var q = currentPos(); q.collapsed = collapsed; window.localStorage.setItem(POS_KEY, JSON.stringify(q)) } catch (e16) { /* ignore */ }
+      // 2026-10-18：连圆点自己的位置一起存（圆点现在可拖）
+      try {
+        var q = currentPos(); q.collapsed = collapsed
+        try { var rd = dot.getBoundingClientRect(); q.dotRight = Math.round(viewW() - rd.right); q.dotTop = Math.round(rd.top) } catch (eD3) { /* ignore */ }
+        window.localStorage.setItem(POS_KEY, JSON.stringify(q))
+      } catch (e16) { /* ignore */ }
     }
     function setCollapsed(v) {
       collapsed = !!v
       if (collapsed) {
         imp(box, 'display', 'none')
+        imp(dot, 'position', 'fixed')   // 2026-10-18 修：圆点从 body 末尾的静态块改成浮层，否则它落在文档流末端、看不见也点不着
+        imp(dot, 'z-index', '2147483646'); imp(dot, 'pointer-events', 'auto')   // 第 9 版：恢复可点
         var st = ['right', 'left', 'top', 'bottom'], i2, v2
         for (i2 = 0; i2 < 4; i2++) {
           v2 = ''
@@ -4916,7 +5166,7 @@ window.__ModuleLoader__.load({
       var right = Math.max(0, Math.min(Math.max(0, viewW() - 60), sRight - dx))
       var top = Math.max(0, Math.min(Math.max(0, viewH() - 24), sTop + dy))
       imp(box, 'right', Math.round(right) + 'px'); imp(box, 'left', 'auto')
-      imp(box, 'top', Math.round(top) + 'px'); imp(box, 'bottom', 'auto')
+      imp(box, 'top', Math.round(Math.max(64, top)) + 'px'); imp(box, 'bottom', 'auto')   // v2.0：顶边留 64px
       imp(box, 'opacity', '1')
     }
     function dragEnd() {
@@ -4943,7 +5193,8 @@ window.__ModuleLoader__.load({
     box.appendChild(pill)
 
     panel = document.createElement('div'); panel.id = ID + '-panel'
-    imp(panel, 'display', 'none'); imp(panel, 'max-width', '460px'); imp(panel, 'max-height', '52vh')
+    imp(panel, 'display', 'none'); imp(panel, 'max-width', '560px'); imp(panel, 'max-height', '60vh')   // 2026-10-18：明细面板加大
+    imp(panel, 'pointer-events', 'auto'); imp(panel, 'font-size', '13px'); imp(panel, 'cursor', 'auto')
     imp(panel, 'overflow', 'auto'); imp(panel, 'padding', '8px 10px'); imp(panel, 'border-radius', '8px')
     imp(panel, 'border', '1px solid #444'); imp(panel, 'background', 'rgba(17,17,19,.97)'); imp(panel, 'color', '#e5e5e5')
     imp(panel, 'white-space', 'pre-wrap'); imp(panel, 'box-shadow', '0 4px 18px rgba(0,0,0,.5)')
@@ -4999,7 +5250,8 @@ window.__ModuleLoader__.load({
     imp(pill, 'background', r.ok ? 'rgba(20,83,45,.95)' : 'rgba(127,29,29,.95)')
     imp(pill, 'color', r.ok ? '#d1fae5' : '#fee2e2')
     imp(pill, 'border-color', r.ok ? '#22c55e' : '#ef4444')
-    panel.textContent = detail(r)
+    panel.textContent = detail(r) + '\n\n指针事件计数 ' + (typeof window.__dshapBadgeClicks === 'number' ? window.__dshapBadgeClicks : 0) +
+      '（最后一次 ' + (window.__dshapBadgeLastEvent || '无') + '）— 点几下胶囊/圆点，这个数字不动＝事件被上层挡住了（不是按钮坏了）'
     imp(panel, 'display', expanded ? 'block' : 'none')
     applyVisible()   // 自检一出结果就按安静模式决定露不露面（没问题就不露面）
   }

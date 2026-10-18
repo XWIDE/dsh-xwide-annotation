@@ -15,11 +15,17 @@
 
 <div align="center">
 
-**Current UI (v1.5.5)**
+**Current UI (v1.5.6)**
 
 ![Two floating pills: color studio 🎨 and annotation outline 📋](./docs/img/10-floating-pills.png)
 
 ![Annotation outline strip — numbered entries per chat](./docs/img/11-outline-strip.png)
+
+![Color studio panel: swatches, custom colors, self-test switch](./docs/img/12-color-studio-panel.png)
+
+![Self-test badge: pill with live event counter](./docs/img/13-badge-pill-live.png)
+
+![Self-test details: mount / style / contrast / hit-area numbers](./docs/img/14-selftest-detail.png)
 
 </div>
 
