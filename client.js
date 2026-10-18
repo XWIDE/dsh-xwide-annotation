@@ -729,12 +729,24 @@ window.__ModuleLoader__.load({
         } catch (_) { /* range 已失效 */ }
       }
       var rows = assistantRows()
+      // 锚点作废标记：作废原因＝锚在用户行（见下方注释）。作废后连它带的上下文一起弃用。
+      var anchorDead = false
       if (saved !== undefined && saved !== null && saved.seqKey !== '') {
         try {
           var item = document.querySelector('[data-chat-anchor-key="' + saved.seqKey + '"]')
           // focus-chat 视图的锚 key 属性名不同，值语义一致。
           if (item === null) {
             item = document.querySelector('[data-focus-anchor-key="' + saved.seqKey + '"]')
+          }
+          // 2026-10-18 修「标注点不显示」：锚点行**必须是助手行**，否则这个锚作废。
+          // 用户发出去的批注块里含原文的副本（「1. 原文」）→ 锚在用户行时，本分支会命中
+          // 那份副本并在 :785 return，标记只落在自己发的消息上，助手原文处永远空着。
+          // 作废后交给后面的 rowHead 分支 / 全局扫描（都只在 assistantRows() 里找，
+          // 不跨消息模糊匹配，v1.3.6 纪律不变）。旧版视图没有该属性 → 行为同改前。
+          if (item !== null) {
+            var itemKind = ''
+            try { itemKind = String(item.getAttribute('data-chat-flow-kind') || '') } catch (_) { itemKind = '' }
+            if (itemKind !== '' && itemKind.indexOf('assistant') < 0) { item = null; anchorDead = true }
           }
           if (item !== null) {
             var itText = item.textContent || ''
@@ -786,7 +798,8 @@ window.__ModuleLoader__.load({
           }
         } catch (_) { return null }
       }
-      if (saved !== undefined && saved !== null && saved.rowHead !== '') {
+      // 锚作废时，它带的 rowHead / ctx 也一起弃用（那些都是从用户行抄来的，对助手原文无意义）。
+      if (!anchorDead && saved !== undefined && saved !== null && saved.rowHead !== '') {
         for (var r = 0; r < rows.length; r++) {
           var rowText = rows[r].textContent || ''
           if (rowText.slice(0, 24) !== saved.rowHead) continue
@@ -823,7 +836,12 @@ window.__ModuleLoader__.load({
           if (bestRow !== null) return bestRow
         }
       }
-      var ctx = saved !== undefined && saved !== null
+      // 2026-10-18 修「标注点不显示」：ctxBefore/ctxAfter 都是空串时＝**没有任何上下文**，
+      // 原来这份对象是 truthy → 全局扫描要求 bestScore > 0，而 ctxScore 对空上下文恒为 0
+      // → 恢复条目（重启后从气泡登记的那批）一个标记都画不出来（遥测实测 items=4、hl=0）。
+      // 判成 null 即走「无上下文」分支：文字命中就接受（仍只在 assistantRows() 里找，不跨消息模糊匹配）。
+      var ctx = saved !== undefined && saved !== null && !anchorDead
+        && ((saved.ctxBefore || '') !== '' || (saved.ctxAfter || '') !== '')
         ? { before: saved.ctxBefore || '', after: saved.ctxAfter || '' }
         : null
       var best = null

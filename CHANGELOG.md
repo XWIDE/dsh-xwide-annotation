@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.5.4] - 2026-10-18 (原文标注点不显示：锚点作废 + 空上下文两处闸门)
+
+### 修复（用户报「跳到原文里，标注还是会有时不显示」/「发现原文标注点还是会不显示」）
+- **根因两条**（都在 `locateQuote` 的定位闸门上，用判定器复现，不是猜）：
+  1. **锚点落在用户行**：重启/重开会话后，恢复出来的批注条目是从**用户气泡标签**登记的（`registerRestoredItems`），锚＝用户行。而用户发出去的批注块里含原文的副本（`1. 原文`）→ `locateQuote` 在锚点分支命中那份副本、`return null` 前就结束，标记只落在自己发的消息上，**助手原文处永远没有编号/高亮**。
+  2. **空上下文当有上下文**：全局扫描的接受条件是 `bestScore > 0`，而 `ctxBefore`/`ctxAfter` 都是空串时 ctx 对象是 truthy、`ctxScore` 对空上下文**恒为 0** → 无锚点的恢复条目**一个标记都画不出来**（代码注释里的遥测实测：items=4、hl=0）。
+- **改法（只动 `client.js` 的 `locateQuote` 一个函数，4 处小改）**：
+  - `:733` 新增 `var anchorDead = false`（锚作废标记）
+  - `:744–750` 锚点行若带 `data-chat-flow-kind` 且不含 `assistant` → **该锚作废**（`item = null; anchorDead = true`），交给后面的分支；旧版视图无该属性 → 行为同改前
+  - `:802` 锚作废时连它带的 `rowHead` 一起弃用（那个行头是从用户行抄的，对助手原文无意义）
+  - `:843–846` `ctxBefore`/`ctxAfter` 全空＝**没有上下文** → ctx 判成 `null`，走「文字命中即接受」分支
+- **纪律不变**：定位仍只在 `assistantRows()` 里找，**不跨消息模糊匹配**（v1.3.6 那条「跳到旧轮次」的教训没破）；判定器 S3（锚定行内无原文必须返回 null）仍 PASS。
+- **判定器**（新）`_annot_extract\locatequote_sim.mjs`：从真 client.js 原样抽出 `locateQuote / allNormSpans / findNormSpan / quoteVariants / ctxScore / rangeFromOffset / assistantRows`，配最小 DOM 桩（文本节点 + Range 桩 + 属性选择器）跑 **7 条断言**：S1 锚定+上下文未变 / S2 行首插字上下文错位 / S3 行内无原文必须放弃 / S4 芯片冒号差异变体 / S5 行头失配维持纪律 / S6 恢复条目须标在助手原文行 / S7 无锚点条目须能全局扫到。
+  - 改后（dev 与装机两份）：**RESULT: ALL PASS (7/7)**
+  - 负例（改前备份 `client.js.bak-2026-10-18T06-27-44-125Z`）：**FAIL (5/7)**，挂的正是 S6 `[owner=bubble]`、S7 `[null(零标记)]` ＝用户症状
+- 回归：角标 **ALL PASS (13)**、跳转重画 **ALL PASS (5)**（都跑在装机那份上）；`node --check` exit 0；装载自检 OK 1/FAIL 0。
+
 ## [1.5.3] - 2026-10-18 (弹窗文字对比度修复，用户肉眼验过)
 
 ### 修复（用户报「这里的黑色字看不清」—— 编辑批注 / 取色盘弹窗）
