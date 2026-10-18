@@ -171,6 +171,11 @@ MIT
   color picker, `Alt+Shift+C` cycling, draggable button with a remembered position.
 - **Annotation outline**: lists every annotation of the current conversation, colour-codes
   the index (1 yellow / 2 red / 3 green …), and jumps to the original sentence on click.
+- **`@` quote reference**: press `@` in the composer and a panel opens above it listing every
+  annotation of the current conversation (`N. quote (note: …)`); `↑`/`↓` moves the selection,
+  Enter or a click inserts it, `Esc` closes the panel. The inserted text reads
+  `引文：「quote」（批注：…）` and goes through the official draft channel, so it ships with
+  your question. With no annotations the panel shows 「暂无批注可引用」.
 
 ---
 
