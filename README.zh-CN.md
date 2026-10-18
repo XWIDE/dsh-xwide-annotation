@@ -13,6 +13,16 @@
 
 <p align="center"><strong>🌐 <a href="https://omdsh-dev.github.io/dsh-annotation/">在线产品站：在 DSH 中体验 dsh-annotation</a></strong></p>
 
+<div align="center">
+
+**当前版本界面（v1.5.5）**
+
+![两个悬浮圆钮：配色工作室 🎨 与批注大纲 📋](./docs/img/10-floating-pills.png)
+
+![批注大纲列表——按编号列出本对话的全部批注](./docs/img/11-outline-strip.png)
+
+</div>
+
 <p align="center">
   <img src="https://badgen.net/badge/license/MIT/blue" alt="license">
 </p>

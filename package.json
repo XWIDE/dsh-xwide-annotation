@@ -9,7 +9,7 @@
     "upstreamRepo": "github.com/omdsh-dev/dsh-annotation",
     "forkedBy": "X-WIDE <xiupk@sina.com.cn>",
     "forkedDate": "2026-10-16",
-    "publishedAs": "npm dsh-xwide-annotation@1.5.3 (2026-10-18)",
+    "publishedAs": "npm dsh-xwide-annotation@1.5.5 (2026-10-18)",
     "addedFeatures": [
       "配色工作室：小圆钮选色 / 4 套荧光预设 / 自定义取色 / Alt+Shift+C 循环 / 位置记忆 / localStorage 持久化",
       "批注大纲列表：列出当前对话全部批注、编号按序配色，点击跳转到原句并高亮",

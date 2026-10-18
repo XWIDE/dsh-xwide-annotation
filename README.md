@@ -13,6 +13,16 @@
 
 <p align="center"><strong>🌐 <a href="https://omdsh-dev.github.io/dsh-annotation/">Live Product Site — Explore dsh-annotation in DSH</a></strong></p>
 
+<div align="center">
+
+**Current UI (v1.5.5)**
+
+![Two floating pills: color studio 🎨 and annotation outline 📋](./docs/img/10-floating-pills.png)
+
+![Annotation outline strip — numbered entries per chat](./docs/img/11-outline-strip.png)
+
+</div>
+
 <p align="center">
   <img src="https://badgen.net/badge/license/MIT/blue" alt="license">
 </p>
