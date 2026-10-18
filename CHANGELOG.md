@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.5.2] - 2026-10-18 (发 npm 用：内容同 1.5.1)
+
+- **代码与 1.5.1 完全相同**，只 bump 版本号，原因：npm 新的 **staged publishing** —— 首次 `npm publish` 撞 2FA/EOTP 失败时，registry 已给本包登记了占位版本 `0.0.0-stage`，随后正式发 1.5.1 被拒：`npm error 409 Conflict - PUT https://registry.npmjs.org/dsh-xwide-annotation - Cannot publish over previously staged version`。
+- 因此以 **1.5.2** 作为 npm 上的首个正式版（`latest`）。1.5.1 号位在 registry 里被 staged 记录占用，不再复用。
+
 ## [1.5.1] - 2026-10-17 (自检角标交互修复)
 
 ### 修复（用户报「点开给我看明细，他点不了」）
