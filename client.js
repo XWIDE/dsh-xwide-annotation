@@ -1414,7 +1414,7 @@ window.__ModuleLoader__.load({
           panel.appendChild(reset)
           var foot = document.createElement('div')
           foot.style.cssText = 'margin-top:10px;padding-top:8px;border-top:1px solid rgba(127,127,127,.25);font-size:12px;line-height:1.7;color:var(--dsw-alias-label-tertiary,#999);'
-          foot.innerHTML = 'dsh-xwide-annotation <b>v1.5.6</b> · 2026-10-18<br>'
+          foot.innerHTML = 'dsh-xwide-annotation <b>v1.5.7</b> · 2026-10-21<br>'
             + '原作者：<a href="https://github.com/omdsh-dev/dsh-annotation" target="_blank" rel="noreferrer">omdsh-dev · dsh-annotation v1.4.11（MIT）</a>'
             + ' · 发布页：<a href="https://github.com/XWIDE/dsh-xwide-annotation" target="_blank" rel="noreferrer">github.com/XWIDE/dsh-xwide-annotation</a><br>'
             + '<a href="https://github.com/XWIDE" target="_blank" rel="noreferrer"><b>X-WIDE</b></a> · '
@@ -2135,7 +2135,7 @@ window.__ModuleLoader__.load({
           }
           var lf = document.createElement('div')
           lf.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(127,127,127,.25);font-size:12px;line-height:1.7;color:var(--dsw-alias-label-tertiary,#999);'
-          lf.innerHTML = 'dsh-xwide-annotation <b>v1.5.6</b> · 2026-10-18<br>'
+          lf.innerHTML = 'dsh-xwide-annotation <b>v1.5.7</b> · 2026-10-21<br>'
             + '原作者 <a href="https://github.com/omdsh-dev/dsh-annotation" target="_blank" rel="noreferrer">omdsh-dev（MIT）</a>'
             + ' · 发布页：<a href="https://github.com/XWIDE/dsh-xwide-annotation" target="_blank" rel="noreferrer">github.com/XWIDE/dsh-xwide-annotation</a><br>'
             + '升级 <a href="https://github.com/XWIDE" target="_blank" rel="noreferrer"><b>X-WIDE</b></a> · '

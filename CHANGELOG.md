@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.5.7] - 2026-10-21 (文档与截图对齐本机验收版；代码与 1.5.6 逐行相同)
+
+### 变更（只有文档与版本串，**没有一行行为代码改动**）
+- `docs/USAGE.zh-CN.md`：§1 换成当前界面截图（两个圆钮 `img/10-floating-pills.png`）、§3 大纲换 `img/11-outline-strip.png`、§4 配色面板换 `img/12-color-studio-panel.png`；§6 自检角标一节重写为**当前真实行为**（默认不显示 → 面板勾选才出现、顶部 64px 禁区、同 id 旧浮层自动清理、胶囊上 `#N v2.0` ＝事件计数＋本机版本、桌面版无开发者工具所以量测长在面板里），并加两张新图 `img/13-badge-pill-live.png`、`img/14-selftest-detail.png`。
+- 两张 v1.4.11 时代的历史截图在图注里明确标注「旧版界面」，不再冒充当前版本。
+- §8 常见问题新增一行：**角标看得见却点不动／拖不动 → 十有八九停在窗口顶边 64px 内（原生标题栏吃掉点击）**，面板「查遮挡」可看矩形 y。
+- 页脚版本串 `client.js:1417` / `:2138` → `dsh-xwide-annotation v1.5.7 · 2026-10-21`；`package.json:3` → `1.5.7`；`annotPro.publishedAs` → `npm dsh-xwide-annotation@1.5.7 (2026-10-21)`。
+
+### 为什么单独发这一版
+1.5.6 的代码已经包含自检浮标 v2.0 的全部修复（实测 npm 包内 `__dshapSelftestBadge = '2.0'`、`__dshapBadgePurged`、`saved.top >= 64` 都在），**代码无需再改**；但仓库文档还停留在旧截图＋「双击隐藏」这类过期描述，且用户已在本机验收通过 → 把文档与版本串对齐，让「线上＝本机」。
+
+### 验证
+- `node --check client.js` exit 0；五个判定器全绿：自检浮标 **ALL PASS (51)**、面板诊断 **(14)**、跳转重画 **(5)**、原文定位 **(7/7)**、开关接线 **(15)**。
+- 发布后以 `npm view dsh-xwide-annotation dist-tags` 判 latest；装机侧三方比对（dev＝registry tarball＝装机，规范化 LF 后同 SHA）。
+
 ## [1.5.6] - 2026-10-18 (自检浮标：默认关 + 彻底修好「看得见却点不动」+ 界面截图更新)
 
 ### 新增
