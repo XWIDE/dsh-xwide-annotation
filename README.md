@@ -160,7 +160,8 @@ Environments without a service manager (e.g. some containers) often need **no re
 
 | Version | Highlights |
 |---|---|
-| **v1.5.x** — this fork, current release **v1.5.5** | Color studio + annotation outline; `@` quote picker; self-check badge interactions; high-contrast dialog text; markers drawn on the assistant source row |
+| **v1.6.0** — this fork, current release (2026-10-30) | 📋 outline button **and** the outline card are now draggable (position remembered, with a "lock position" checkbox on the card); the panel's "show self-check badge" tick now really shows the badge (quiet mode no longer hides it, details expand at once); the panel's "memory auto-inject" row was removed — that write never read back, so the toggle showed a fake state |
+| **v1.5.x** — this fork | Color studio + annotation outline; `@` quote picker; self-check badge interactions; high-contrast dialog text; markers drawn on the assistant source row |
 | v1.4.x | Locale-aware: zh/en UI copy and annotation protocol block, live switch via DSH `locale` service |
 | v1.3.x | Numbered reply correspondence: format-instruction injection + hoverable `Annotation N:` chips (TreeWalker snapshot fix) |
 | v1.2.x | Hidden annotation block in bubble: MutationObserver microtask zero-flicker + polling fallback + historical-message repair |
@@ -179,7 +180,7 @@ MIT
 
 ## Local upgrade (derivative work)
 
-**dsh-xwide-annotation v1.5.0** (2026-10-16; current release **v1.5.5**, 2026-10-18) — a derivative work based on
+**dsh-xwide-annotation v1.5.0** (2026-10-16; current release **v1.6.0**, 2026-10-30) — a derivative work based on
 [@changfenhuang/dsh-annotation](https://github.com/omdsh-dev/dsh-annotation) **v1.4.11**
 (by **omdsh-dev**, MIT). The upstream notice and MIT terms are retained verbatim
 (see [LICENSE](./LICENSE)). This upgrade adds:

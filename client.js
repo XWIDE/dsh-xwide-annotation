@@ -1132,14 +1132,66 @@ window.__ModuleLoader__.load({
 
         var listBtn = document.createElement('div')
         listBtn.id = 'dshap-list-btn'
-        listBtn.title = '批注大纲：点一条跳到该标记位置'
+        listBtn.title = '批注大纲：点一下打开 · 按住可拖到任意位置（位置会记住）'
         listBtn.textContent = '📋'
         listBtn.style.cssText = 'display:flex;align-items:center;justify-content:center;'
           + 'position:fixed;right:18px;top:148px;width:48px;height:48px;'
-          + 'border-radius:50%;z-index:2147483646;cursor:pointer;border:3px solid #fff;'
+          + 'border-radius:50%;z-index:2147483646;cursor:grab;border:3px solid #fff;'
           + 'box-shadow:0 4px 16px rgba(0,0,0,.55);background:#333;'
-          + 'color:#eee;font-size:20px;line-height:1;user-select:none;'
+          + 'color:#eee;font-size:20px;line-height:1;user-select:none;touch-action:none;'
         document.body.appendChild(listBtn)
+        // ===== 2026-10-30（用户截图点名这个 📋 钮「不能随意拖动」）=====
+        // 它此前只有点击、没有任何拖动逻辑。现在：按住拖走 + 位置存 localStorage；
+        // 移动超过 4px 才算拖动，松手后 400ms 内把紧随其后的 click 吞掉，避免「拖完顺手打开了面板」。
+        ;(function makeBtnDraggable(el, key) {
+          function load() {
+            try {
+              var o = JSON.parse(localStorage.getItem(key) || 'null')
+              if (o && typeof o.left === 'number' && typeof o.top === 'number') return o
+            } catch (_) { /* ignore */ }
+            return null
+          }
+          var p0 = load()
+          if (p0) {
+            el.style.left = p0.left + 'px'; el.style.top = p0.top + 'px'
+            el.style.right = 'auto'; el.style.bottom = 'auto'
+          }
+          el.addEventListener('pointerdown', function (e) {
+            if (e.pointerType === 'mouse' && e.button !== 0) return
+            var r = el.getBoundingClientRect()
+            var sx = e.clientX, sy = e.clientY
+            var ox = sx - r.left, oy = sy - r.top, moved = false
+            function mv(ev) {
+              if (!moved) {
+                if (Math.abs(ev.clientX - sx) < 4 && Math.abs(ev.clientY - sy) < 4) return
+                moved = true
+                el.style.cursor = 'grabbing'
+              }
+              var w = el.offsetWidth || 48, h = el.offsetHeight || 48
+              moveAnnotationGroup(r, ev.clientX - sx, ev.clientY - sy)
+            }
+            function up() {
+              document.removeEventListener('pointermove', mv, true)
+              document.removeEventListener('pointerup', up, true)
+              document.removeEventListener('pointercancel', up, true)
+              el.style.cursor = 'grab'
+              if (!moved) return
+              try {
+                var rr = el.getBoundingClientRect()
+                localStorage.setItem(key, JSON.stringify({ left: Math.round(rr.left), top: Math.round(rr.top) }))
+              } catch (_) { /* ignore */ }
+              var swallow = function (ce) {
+                ce.stopPropagation(); ce.preventDefault()
+                el.removeEventListener('click', swallow, true)
+              }
+              el.addEventListener('click', swallow, true)
+              setTimeout(function () { el.removeEventListener('click', swallow, true) }, 400)
+            }
+            document.addEventListener('pointermove', mv, true)
+            document.addEventListener('pointerup', up, true)
+            document.addEventListener('pointercancel', up, true)
+          }, true)
+        })(listBtn, 'dshap.listbtn.pos.v1')
 
         var listPanel = document.createElement('div')
         listPanel.id = 'dshap-list'
@@ -1150,6 +1202,132 @@ window.__ModuleLoader__.load({
           + 'font-family:var(--dsw-font-family,system-ui);font-size:12px;'
           + 'box-shadow:var(--dsw-shadow-lv3,0 8px 24px rgba(0,0,0,.4));'
         document.body.appendChild(listPanel)
+
+        // ===== 2026-10-30（用户原话）：「这个改成 可以随着意移动，也加下 勾选 叫锁定位置」=====
+        // 批注大纲浮卡此前写死 right:18px / top:206px，不能挪。现在：可拖拽 + 位置存档 + 「锁定位置」勾选。
+        var LIST_POS_KEY = 'dshap.list.pos.v1'
+        var LIST_LOCK_KEY = 'dshap.list.lock.v1'
+        function loadListPos() {
+          try {
+            var o = JSON.parse(localStorage.getItem(LIST_POS_KEY) || 'null')
+            if (o && typeof o.left === 'number' && typeof o.top === 'number') return o
+          } catch (_) { /* ignore */ }
+          return null
+        }
+        function saveListPos(l, t) {
+          try { localStorage.setItem(LIST_POS_KEY, JSON.stringify({ left: Math.round(l), top: Math.round(t) })) } catch (_) { /* ignore */ }
+        }
+        function isListLocked() {
+          try { return localStorage.getItem(LIST_LOCK_KEY) === '1' } catch (_) { return false }
+        }
+        function setListLocked(v) {
+          try { localStorage.setItem(LIST_LOCK_KEY, v ? '1' : '0') } catch (_) { /* ignore */ }
+        }
+        function applyListPos() {
+          var p = loadListPos()
+          if (!p) return
+          var w = listPanel.offsetWidth || 340
+          var h = listPanel.offsetHeight || 220
+          var left = Math.max(0, Math.min(p.left, Math.max(0, window.innerWidth - w)))
+          var top = Math.max(0, Math.min(p.top, Math.max(0, window.innerHeight - h)))
+          listPanel.style.left = left + 'px'
+          listPanel.style.top = top + 'px'
+          listPanel.style.right = 'auto'
+        }
+        // 2026-10-30（用户原话「下面这个不跟着动呀」）：大纲浮卡跟随 📋 钮——钮拖到哪，卡片贴到它正下方。
+        // 「锁定位置」勾上时不跟随（卡片钉在当前位置）。
+        function syncListPanelToBtn() {
+          try {
+            if (!listPanel || listPanel.style.display === 'none') return
+            if (isListLocked()) return
+            var r = listBtn.getBoundingClientRect()
+            var w = listPanel.offsetWidth || 340
+            var h = listPanel.offsetHeight || 220
+            var left = Math.min(Math.max(4, r.right - w), Math.max(4, window.innerWidth - w - 4))
+            var top = Math.min(Math.max(4, r.bottom + 8), Math.max(4, window.innerHeight - h - 4))
+            listPanel.style.left = Math.round(left) + 'px'
+            listPanel.style.top = Math.round(top) + 'px'
+            listPanel.style.right = 'auto'
+            listPanel.style.bottom = 'auto'
+          } catch (_) { /* ignore */ }
+        }
+        // 只有按在「非交互元素」上才开始拖，避免拖动抢掉「一键清空全部 / ✕ / 勾选」的点击
+        function isInteractiveTarget(t) {
+          try {
+            return !!(t && t.closest && t.closest('input,button,a,select,textarea,[data-dshap-nodrag]'))
+          } catch (_) { return false }
+        }
+        // 2026-10-30 第 2 版：第 1 版把 pointermove 挂在手柄自己身上，宿主在 document 捕获相
+        // 先处理指针事件 → 拖不动。改成：按下记起点，document 捕获相收 move/up；移动 >4px 才算拖，
+        // 这样点大纲条目不会被误判成拖动。
+        function dragState(msg) {
+          try {
+            var el = listPanel.querySelector('[data-dshap-dragstate]')
+            if (el) el.textContent = msg
+          } catch (_) { /* ignore */ }
+        }
+        // 2026-10-30 第 3 版（前两版用户报「还是动不了」）：
+        // ① 从上到下都绑不住 → 改成在 **document 捕获相**装一个全局监听，按在任何位置都能起拖：
+        //    命中条件只有「按在浮卡里面 + 不是勾选/按钮这类交互件」。
+        // ② 不再只认标题栏 —— 用户多半是按在卡片主体上，之前那样当然拖不动。
+        // ③ 按下/移动时在标题栏回显「按住中…／拖动中」，一眼能看出监听到底有没有收到事件。
+        // 2026-10-30（用户原话「他两个是一起的」）：📋 钮和大纲浮卡当**一个整体**移动 ——
+        // 拖钮或拖卡，两边一起走，相对位置不变（卡片始终贴在钮正下方）。
+        function moveAnnotationGroup(baseRect, dx, dy) {
+          try {
+            var w = listBtn.offsetWidth || 48
+            var h = listBtn.offsetHeight || 48
+            var left = Math.max(4, Math.min(baseRect.left + dx, window.innerWidth - w - 4))
+            var top = Math.max(4, Math.min(baseRect.top + dy, window.innerHeight - h - 4))
+            listBtn.style.left = Math.round(left) + 'px'
+            listBtn.style.top = Math.round(top) + 'px'
+            listBtn.style.right = 'auto'
+            listBtn.style.bottom = 'auto'
+            try {
+              localStorage.setItem('dshap.listbtn.pos.v1', JSON.stringify({ left: Math.round(left), top: Math.round(top) }))
+            } catch (_) { /* ignore */ }
+            syncListPanelToBtn()
+          } catch (_) { /* ignore */ }
+        }
+        function makeListDraggable() {
+          if (makeListDraggable.__bound) return
+          makeListDraggable.__bound = true
+          document.addEventListener('pointerdown', function (e) {
+            if (!e.target || !listPanel.contains(e.target)) return
+            if (e.pointerType === 'mouse' && e.button !== 0) return
+            if (isListLocked()) return
+            if (isInteractiveTarget(e.target)) return
+            dragState('按住中…')
+            var r0 = listPanel.getBoundingClientRect()
+            var g0 = listBtn.getBoundingClientRect()
+            var startX = e.clientX
+            var startY = e.clientY
+            var ox = e.clientX - r0.left
+            var oy = e.clientY - r0.top
+            var moved = false
+            function mv(ev) {
+              if (!moved) {
+                if (Math.abs(ev.clientX - startX) < 4 && Math.abs(ev.clientY - startY) < 4) return
+                moved = true
+                dragState('拖动中')
+                listPanel.style.left = r0.left + 'px'
+                listPanel.style.top = r0.top + 'px'
+                listPanel.style.right = 'auto'
+              }
+              moveAnnotationGroup(g0, ev.clientX - startX, ev.clientY - startY)
+            }
+            function up() {
+              dragState('')
+              document.removeEventListener('pointermove', mv, true)
+              document.removeEventListener('pointerup', up, true)
+              document.removeEventListener('pointercancel', up, true)
+              if (moved) { try { syncListPanelToBtn() } catch (_) { /* ignore */ } }
+            }
+            document.addEventListener('pointermove', mv, true)
+            document.addEventListener('pointerup', up, true)
+            document.addEventListener('pointercancel', up, true)
+          }, true)
+        }
 
         var panel = document.createElement('div')
         panel.id = 'dshap-panel'
@@ -1414,7 +1592,7 @@ window.__ModuleLoader__.load({
           panel.appendChild(reset)
           var foot = document.createElement('div')
           foot.style.cssText = 'margin-top:10px;padding-top:8px;border-top:1px solid rgba(127,127,127,.25);font-size:12px;line-height:1.7;color:var(--dsw-alias-label-tertiary,#999);'
-          foot.innerHTML = 'dsh-xwide-annotation <b>v1.5.7</b> · 2026-10-21<br>'
+          foot.innerHTML = 'dsh-xwide-annotation <b>v1.6.0</b> · 2026-10-30<br>'
             + '原作者：<a href="https://github.com/omdsh-dev/dsh-annotation" target="_blank" rel="noreferrer">omdsh-dev · dsh-annotation v1.4.11（MIT）</a>'
             + ' · 发布页：<a href="https://github.com/XWIDE/dsh-xwide-annotation" target="_blank" rel="noreferrer">github.com/XWIDE/dsh-xwide-annotation</a><br>'
             + '<a href="https://github.com/XWIDE" target="_blank" rel="noreferrer"><b>X-WIDE</b></a> · '
@@ -1434,6 +1612,9 @@ window.__ModuleLoader__.load({
           badgeRow.appendChild(badgeBox)
           badgeRow.appendChild(document.createTextNode('显示自检角标（诊断用：正文画不出标注时看明细）'))
           panel.appendChild(badgeRow)
+          // ===== 2026-10-30：「记忆自动注入」勾选行已按用户要求撤掉（原话 m00548「直接取消掉这个」+ m00552「就不这个功能了」）=====
+          // 撤掉的原因：面板那行写入宿主命名空间读不回来（scope.set 之后 getSnapshot 拿不到新值），勾选状态是假的；
+          // 功能整块下线＝记忆恢复成插件自带的每轮自动注入，界面不再提供开关。gate 服务端在 enabled=false 时逐轮放行，行为不变。
           // 自检状态行（第 6 次修 · 不依赖浮层）：直接在面板里读 __dshapSelfTest()。
            // 为什么搬进面板：浮层角标在真实页面里收不到指针事件（实测计数 #0 不涨），
            // 而面板是宿主正常渲染的节点，点击与读数都可靠 → 诊断价值保留、交互风险清零。
@@ -1955,6 +2136,7 @@ window.__ModuleLoader__.load({
             listSig = listSignature()
             renderList()
             listPanel.style.display = 'block'
+            syncListPanelToBtn()
             clampIntoView(listPanel)
             if (listTimer === null) {
               listTimer = setInterval(function () {
@@ -1976,6 +2158,27 @@ window.__ModuleLoader__.load({
           var ht = document.createElement('span')
           ht.textContent = '批注大纲（' + items.length + '）'
           head.appendChild(ht)
+          // 拖动状态回显：按住时显示「按住中…」，移动时显示「拖动中」—— 用来一眼确认监听收到事件没有
+          var dragHint = document.createElement('span')
+          dragHint.setAttribute('data-dshap-dragstate', '1')
+          dragHint.style.cssText = 'font-size:10px;font-weight:400;color:var(--dsw-alias-label-tertiary,#888);white-space:nowrap;'
+          head.appendChild(dragHint)
+          // 「锁定位置」勾选（2026-10-30 用户要求）：勾上＝浮卡不能拖；取消＝可随意移动，位置自动记住
+          var lockWrap = document.createElement('label')
+          lockWrap.setAttribute('data-dshap-nodrag', '1')
+          lockWrap.title = '勾上＝锁定位置（拖不动）；取消＝可以随意拖到别处，位置会记住'
+          lockWrap.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:11px;font-weight:400;'
+            + 'color:var(--dsw-alias-label-tertiary,#999);cursor:pointer;user-select:none;white-space:nowrap;'
+          var lockBox = document.createElement('input')
+          lockBox.type = 'checkbox'
+          lockBox.checked = isListLocked()
+          lockBox.style.cssText = 'margin:0;cursor:pointer;'
+          lockBox.addEventListener('change', function () { setListLocked(!!lockBox.checked) })
+          var lockTxt = document.createElement('span')
+          lockTxt.textContent = '锁定位置'
+          lockWrap.appendChild(lockBox)
+          lockWrap.appendChild(lockTxt)
+          head.appendChild(lockWrap)
           var hb = document.createElement('div')
           hb.style.cssText = 'display:flex;align-items:center;gap:8px;'
           var clearAll = document.createElement('span')
@@ -2012,6 +2215,9 @@ window.__ModuleLoader__.load({
           hb.appendChild(cb)
           head.appendChild(hb)
           listPanel.appendChild(head)
+          // 2026-10-30：整个浮卡都能拖（锁定位置后拖不动）；打开时先把上次位置还原
+          try { makeListDraggable() } catch (_) { /* ignore */ }
+          try { syncListPanelToBtn() } catch (_) { /* ignore */ }
           if (confirmClear) {
             var warn = document.createElement('div')
             warn.style.cssText = 'margin:0 0 10px;padding:8px 10px;border-radius:8px;background:rgba(255,90,90,.16);'
@@ -2135,7 +2341,7 @@ window.__ModuleLoader__.load({
           }
           var lf = document.createElement('div')
           lf.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(127,127,127,.25);font-size:12px;line-height:1.7;color:var(--dsw-alias-label-tertiary,#999);'
-          lf.innerHTML = 'dsh-xwide-annotation <b>v1.5.7</b> · 2026-10-21<br>'
+          lf.innerHTML = 'dsh-xwide-annotation <b>v1.6.0</b> · 2026-10-30<br>'
             + '原作者 <a href="https://github.com/omdsh-dev/dsh-annotation" target="_blank" rel="noreferrer">omdsh-dev（MIT）</a>'
             + ' · 发布页：<a href="https://github.com/XWIDE/dsh-xwide-annotation" target="_blank" rel="noreferrer">github.com/XWIDE/dsh-xwide-annotation</a><br>'
             + '升级 <a href="https://github.com/XWIDE" target="_blank" rel="noreferrer"><b>X-WIDE</b></a> · '
@@ -4870,9 +5076,14 @@ window.__ModuleLoader__.load({
     if (!box) return
     // 安静模式（2026-10-16 用户选 B）：自检**没有问题**时完全不露面 —— 平时不占地方、不挡你操作；
     //   一旦查出问题（样式越界 / 对比度 / 命中区 / 挂载）立刻自己冒出来。正在展开细看时保持可见。
+    // 2026-10-30 修「面板里勾了没效果」：安静模式过去把**显式勾选**也叫回去（自检 OK → display:none），
+    //   于是那颗「显示自检角标」勾上以后什么也不出现（实测：胶囊建出来了 231×46，display 被改成 none）。
+    //   现在加一条闸：勾上＝用户点名要看 → 安静模式不再插手，胶囊一律露面。
+    var explicit = false
+    try { explicit = !!(window.localStorage && window.localStorage.getItem(VIS_KEY) === '1') } catch (eX) { explicit = false }
     var last = null
     try { last = window.__dshapLastReport || null } catch (eQ) { last = null }
-    var quiet = !!(last && last.ok === true && !expanded)
+    var quiet = !explicit && !!(last && last.ok === true && !expanded)
     if (quiet) { imp(box, 'display', 'none'); if (dot) imp(dot, 'display', 'none') }
     else if (collapsed) { imp(box, 'display', 'none'); if (dot) imp(dot, 'display', 'block') }
     else { imp(box, 'display', 'flex'); if (dot) imp(dot, 'display', 'none') }
@@ -5284,7 +5495,16 @@ window.__ModuleLoader__.load({
 
   function boot() {
     applyVisible()   // 可见性由插件页那行的开关决定；第一次可见时顺手启动自检与 DOM 监听
-    try { if (typeof window.addEventListener === 'function') window.addEventListener('dshap-badge-visible-change', applyVisible) } catch (e20) { /* ignore */ }
+    // 2026-10-30：面板里勾上那颗「显示自检角标」＝点名要看 → 连明细一起摊开，并且清掉「双击收成小圆点/本次隐藏」的残留，
+    //   这样勾选的第一下就一定看得见东西（原来勾完只把胶囊按在安静模式里，用户读到的是「没效果」）。
+    try {
+      if (typeof window.addEventListener === 'function') window.addEventListener('dshap-badge-visible-change', function () {
+        var on = false
+        try { on = !!(window.localStorage && window.localStorage.getItem(VIS_KEY) === '1') } catch (eV) { on = false }
+        if (on) { hideThisSession = false; collapsed = false; expanded = true }
+        applyVisible()
+      })
+    } catch (e20) { /* ignore */ }
   }
 
   if (typeof setTimeout === 'function') setTimeout(boot, 1200)

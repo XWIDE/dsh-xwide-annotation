@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.6.0] - 2026-10-30 (大纲钮与浮卡可拖动 + 自检角标勾选真生效 + 撤掉「记忆自动注入」勾选行)
+
+### 新增
+- **📋 大纲钮可以拖到任意位置**（用户截图点名这个钮「不能随意拖动」）：`makeBtnDraggable(el, key)`，位置存 localStorage；位移 **>4px 才算拖动**，松手后 400ms 内把紧随其后的 click 吞掉，避免「拖完顺手打开了面板」。光标 `pointer → grab`、加 `touch-action:none`（`client.js:1135-1141`、`:1143+`）。
+- **批注大纲浮卡整卡可拖 + 「锁定位置」勾选**：此前写死 `right:18px / top:206px` 不能挪。现在键为 `dshap.list.pos.v1` / `dshap.list.lock.v1`，`makeListDraggable()` 在打开时还原上次位置、`syncListPanelToBtn()` 让浮卡跟着钮走；标题栏有拖动状态回显「按住中…／拖动中」（`data-dshap-dragstate`），锁定后拖不动（`client.js:1206+`、`:2161+`、`:2218+`）。
+
+### 修复
+- **面板勾「显示自检角标」没效果**（用户原话「这里没效果」）：根因＝`applyVisible()` 的安静模式在自检 OK 时把 `display` 改回 `none`，实测胶囊建出来了 231×46 却被当场按回去。现在加一条闸：`explicit = localStorage.getItem(VIS_KEY)==='1'` → `quiet = !explicit && ...`（`client.js:5079-5086`）；勾上＝点名要看，安静模式不再插手。同时监听器在勾选状态下清掉「双击收成小圆点／本次隐藏」残留并直接摊开明细（`client.js:5498-5507`）。判定 `_annot_extract/badge_probe.py`（无头 Edge 三组对照）：修前 A 组 FAIL（`disp='none' rect='0,0 0x0'`），修后 A/B/C 全 PASS（A 组 `rect='682,492 582x392' disp='flex'`）。
+- **可见性判定口径改正**：`offsetParent !== null` 判可见是**假 FAIL**——`position:fixed` 元素规范规定 offsetParent 恒为 null。改成 `getClientRects().length>0 && w/h>0 && display!=='none' && visibility!=='hidden' && 祖先链可见`。
+
+### 移除
+- **面板里那行「记忆自动注入（勾上＝每轮自动进对话；取消＝只有本轮 @标注 的才进）」整块下线**（用户 m00548「直接取消掉这个」+ m00552「就不这个功能了」）。原因：勾选写入宿主命名空间后**读不回值**（`scope.set('enabled', …)` 之后 `getSnapshot()` 拿不到新值），界面显示的是本地勾选态＝假状态，实测取消勾选后记忆照样每轮进。功能撤掉＝记忆恢复成插件自带的每轮自动注入，界面不再提供开关。配套的 `dsh-xwide-memory-gate` 服务端已改成「钩子常驻＋每轮现读配置」，在 `enabled=false` 时逐轮放行，行为与撤掉前一致。
+
+### 版本串
+- 页脚 `client.js:1595` / `:2344` → `dsh-xwide-annotation v1.6.0 · 2026-10-30`；`package.json:3` → `1.6.0`；`annotPro.publishedAs` → `npm dsh-xwide-annotation@1.6.0 (2026-10-30)`。
+
+### 验证
+- `_annot_extract/check_js.cjs` → `OK …client.js bytes=308431 lines=5513`；`dsh_plugin_check(dir=dsh-xwide-annotation)` → `OK files=1 · 装载自检通过：导出了 name apply；apply() 不抛错`。
+- **仓库 `client.js` 与本机生效副本逐字节相同**：SHA1 `6474151812A93FE6AF9B1AE6ADAC93D28189615B`（发出去的就是本机验收过的那份）。
+- 闸门侧行为断言 `_annot_extract/gate_probe.mjs` → `SUMMARY gate_probe results=11 fails=0`。
+
+
 ## [1.5.7] - 2026-10-21 (文档与截图对齐本机验收版；代码与 1.5.6 逐行相同)
 
 ### 变更（只有文档与版本串，**没有一行行为代码改动**）
