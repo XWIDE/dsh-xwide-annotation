@@ -15,7 +15,9 @@
 
 <div align="center">
 
-**Current UI (v1.5.6)**
+**Current UI (v1.7.0 · 2026-11-27, works with DeepSeek Harness 0.2.x)**
+
+![The "Annotations ×N" chip beside the input box (red arrow in the shot); the "批注拼稿失败…isAutoAttach is not defined" banner in this screenshot is the pre-v1.7.0 error, fixed in this release](./docs/img/15-annotation-pill-live.png)
 
 ![Two floating pills: color studio 🎨 and annotation outline 📋](./docs/img/10-floating-pills.png)
 
@@ -55,6 +57,9 @@ Sidebar file annotations (DSH 0.1.6-alpha.1): select plain text, Markdown, or co
 | Hidden in your bubble | The annotation block is removed from your bubble's DOM the moment you send (before the browser paints), leaving only the question + the chip (hover to view); historical messages self-heal after a refresh |
 | Numbered reply correspondence | A format instruction is injected into the message so the model replies `Annotation 1: …` … `Annotation N: …` one by one |
 | Reply annotation chips | `Annotation N:` in the reply renders as hoverable chips showing the passage + your note |
+| Outline panel (v1.7.0) | "Clear all" and "Restore (N)" are two separately labelled pills: after clearing, the pill shows how many entries can come back and one click restores the whole batch (snapshot kept locally) |
+| Custom colours are deletable (v1.7.0) | A custom swatch inside the annotate card is **deleted by right-click** (double-click fallback); right-clicking the rainbow swatch itself **cancels the current colour**, falling back to the default per-number colour |
+| Jump & marker painting (v1.7.0) | Outline jump glide capped at 300 ms with 60 ms landing probes; markers are painted on arrival (single next-frame pass with a re-entrancy gate) — no perceptible delay, no console flood |
 
 ## Interaction flow
 
@@ -160,7 +165,8 @@ Environments without a service manager (e.g. some containers) often need **no re
 
 | Version | Highlights |
 |---|---|
-| **v1.6.0** — this fork, current release (2026-10-30) | 📋 outline button **and** the outline card are now draggable (position remembered, with a "lock position" checkbox on the card); the panel's "show self-check badge" tick now really shows the badge (quiet mode no longer hides it, details expand at once); the panel's "memory auto-inject" row was removed — that write never read back, so the toggle showed a fake state |
+| **v1.7.0** — this fork, current release (2026-11-27) | Outline panel revamp: **"Clear all" + "Restore (N)"** bring the whole cleared batch back; card swatches are **deleted by right-click**, the rainbow swatch **cancels the current colour on right-click**; jump glide capped at 300 ms with 60 ms landing probes; markers painted on arrival (no delay, no console flood); fixed **"批注拼稿失败：isAutoAttach is not defined"** (the auto-attach switch lived in an inner scope while the compose call site sat outside it → the whole annotation was silently dropped); footer now states **DeepSeek Harness 0.2.x** support (verified on 0.2.21 / Electron) |
+| **v1.6.0** — this fork (2026-10-30) | 📋 outline button **and** the outline card are now draggable (position remembered, with a "lock position" checkbox on the card); the panel's "show self-check badge" tick now really shows the badge (quiet mode no longer hides it, details expand at once); the panel's "memory auto-inject" row was removed — that write never read back, so the toggle showed a fake state |
 | **v1.5.x** — this fork | Color studio + annotation outline; `@` quote picker; self-check badge interactions; high-contrast dialog text; markers drawn on the assistant source row |
 | v1.4.x | Locale-aware: zh/en UI copy and annotation protocol block, live switch via DSH `locale` service |
 | v1.3.x | Numbered reply correspondence: format-instruction injection + hoverable `Annotation N:` chips (TreeWalker snapshot fix) |
@@ -180,7 +186,7 @@ MIT
 
 ## Local upgrade (derivative work)
 
-**dsh-xwide-annotation v1.5.0** (2026-10-16; current release **v1.6.0**, 2026-10-30) — a derivative work based on
+**dsh-xwide-annotation v1.5.0** (2026-10-16; current release **v1.7.0**, 2026-11-27) — a derivative work based on
 [@changfenhuang/dsh-annotation](https://github.com/omdsh-dev/dsh-annotation) **v1.4.11**
 (by **omdsh-dev**, MIT). The upstream notice and MIT terms are retained verbatim
 (see [LICENSE](./LICENSE)). This upgrade adds:
