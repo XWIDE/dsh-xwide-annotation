@@ -1,6 +1,6 @@
 {
   "name": "dsh-xwide-annotation",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "annotPro": {
     "upstream": "@changfenhuang/dsh-annotation",
     "upstreamVersion": "1.4.11",
@@ -9,13 +9,14 @@
     "upstreamRepo": "github.com/omdsh-dev/dsh-annotation",
     "forkedBy": "X-WIDE <xiupk@sina.com.cn>",
     "forkedDate": "2026-10-16",
-    "publishedAs": "npm dsh-xwide-annotation@1.6.0 (2026-10-30)",
+    "publishedAs": "npm dsh-xwide-annotation@1.7.0 (2026-11-27)",
     "addedFeatures": [
       "配色工作室：小圆钮选色 / 4 套荧光预设 / 自定义取色 / Alt+Shift+C 循环 / 位置记忆 / localStorage 持久化",
       "批注大纲列表：列出当前对话全部批注、编号按序配色，点击跳转到原句并高亮",
       "批注登记带行级锚点（seqKey + rowHead），大纲与气泡来源按原文去重，「一键清空全部」按会话隔离",
       "📋 大纲钮与大纲浮卡都可拖动，位置存本机；浮卡带「锁定位置」勾选（1.6.0）",
-      "自检角标：面板勾选「显示自检角标」当场露面并摊开明细（1.6.0 修好「勾了没效果」）"
+      "自检角标：面板勾选「显示自检角标」当场露面并摊开明细（1.6.0 修好「勾了没效果」）",
+      "大纲面板改版（1.7.0）：「一键清空」+「恢复清空(N)」整批找回；卡片色块右键删、彩虹块右键取消当前色；跳转提速；到位当帧显示标记；修好「拼稿失败 isAutoAttach is not defined」"
     ]
   },
   "author": "X-WIDE <xiupk@sina.com.cn>",

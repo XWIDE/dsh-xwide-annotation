@@ -1207,6 +1207,18 @@ window.__ModuleLoader__.load({
         // 批注大纲浮卡此前写死 right:18px / top:206px，不能挪。现在：可拖拽 + 位置存档 + 「锁定位置」勾选。
         var LIST_POS_KEY = 'dshap.list.pos.v1'
         var LIST_LOCK_KEY = 'dshap.list.lock.v1'
+        // 「自动携带批注」开关（2026-11-26 用户要求）：勾上＝现状（每次发送自动拼批注块）；
+        // 不勾＝不自动注入每轮对话，只有草稿里显式出现「@」引用时才拼入。默认勾上。
+        var AUTO_ATTACH_KEY = 'dshap.autoattach.v1'
+        function isAutoAttach() {
+          try { return localStorage.getItem(AUTO_ATTACH_KEY) !== '0' } catch (_) { return true }
+        }
+        function setAutoAttach(v) {
+          try { localStorage.setItem(AUTO_ATTACH_KEY, v ? '1' : '0') } catch (_) { /* ignore */ }
+        }
+        // 2026-11-27 修「批注拼稿失败：isAutoAttach is not defined」：这个开关定义在内层 IIFE 里，
+        // 而拼稿的调用点在外层作用域（client.js:3993）→ 够不着。按本文件既有写法挂到 window 上共享。
+        try { window.__dshapIsAutoAttach = isAutoAttach } catch (_) { /* ignore */ }
         function loadListPos() {
           try {
             var o = JSON.parse(localStorage.getItem(LIST_POS_KEY) || 'null')
@@ -1554,24 +1566,38 @@ window.__ModuleLoader__.load({
           var customs = readCustoms()
           if (customs.length > 0) {
             var clbl = document.createElement('div')
-            clbl.textContent = '我的颜色（右键删除）'
+            clbl.textContent = '我的颜色（点✕删除）'
             clbl.style.cssText = 'font-size:12px;color:#cfcfcf;margin:0 0 8px;'
             panel.appendChild(clbl)
             var crow = document.createElement('div')
             crow.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;'
             customs.forEach(function (hex) {
               var cb = document.createElement('div')
-              cb.title = hex
-              cb.style.cssText = 'width:32px;height:32px;border-radius:9px;cursor:pointer;'
+              cb.title = hex + '（右上 ✕ 删除；右键也可删）'
+              cb.style.cssText = 'position:relative;width:32px;height:32px;border-radius:9px;cursor:pointer;'
                 + 'border:2px solid ' + (readColor() === hex ? '#fff' : 'transparent') + ';background:' + hex + ';'
               cb.addEventListener('click', function () { set(hex) })
-              cb.addEventListener('contextmenu', function (e) {
-                e.preventDefault()
+              // 2026-11-27 用户读数「自定义出来的色块没法清除」：原来只有 contextmenu，
+              // 宿主里右键这条路不可靠 → 加一颗可见的 ✕，并用 pointerdown 双绑（同 click 被吞的病因）。
+              var del = document.createElement('span')
+              del.textContent = '✕'
+              del.title = '删除这个自定义颜色'
+              del.setAttribute('data-dshap-nodrag', '1')
+              del.style.cssText = 'position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;line-height:15px;'
+                + 'text-align:center;font-size:10px;border-radius:8px;background:#c0392b;color:#fff;cursor:pointer;'
+              var dropIt = function (e) {
+                e.preventDefault(); e.stopPropagation()
                 var list = readCustoms()
                 var idx = list.indexOf(hex)
                 if (idx !== -1) { list.splice(idx, 1); saveCustoms(list) }
+                // 删的正是当前生效的那颗 → 一并清掉全局色，正文色块才会真的回落
+                if (readColor() === hex) { try { clearColor() } catch (_) { /* ignore */ } }
                 renderPanel()
-              })
+              }
+              del.addEventListener('pointerdown', dropIt)
+              del.addEventListener('click', dropIt)
+              cb.addEventListener('contextmenu', function (e) { e.preventDefault(); dropIt(e) })
+              cb.appendChild(del)
               crow.appendChild(cb)
             })
             panel.appendChild(crow)
@@ -1592,7 +1618,8 @@ window.__ModuleLoader__.load({
           panel.appendChild(reset)
           var foot = document.createElement('div')
           foot.style.cssText = 'margin-top:10px;padding-top:8px;border-top:1px solid rgba(127,127,127,.25);font-size:12px;line-height:1.7;color:var(--dsw-alias-label-tertiary,#999);'
-          foot.innerHTML = 'dsh-xwide-annotation <b>v1.6.0</b> · 2026-10-30<br>'
+          foot.innerHTML = 'dsh-xwide-annotation <b>v1.7.0</b> · 2026-11-27<br>'
+             + '适配 DeepSeek Harness <b>0.2.x</b>（实测 0.2.21 / Electron）<br>'
             + '原作者：<a href="https://github.com/omdsh-dev/dsh-annotation" target="_blank" rel="noreferrer">omdsh-dev · dsh-annotation v1.4.11（MIT）</a>'
             + ' · 发布页：<a href="https://github.com/XWIDE/dsh-xwide-annotation" target="_blank" rel="noreferrer">github.com/XWIDE/dsh-xwide-annotation</a><br>'
             + '<a href="https://github.com/XWIDE" target="_blank" rel="noreferrer"><b>X-WIDE</b></a> · '
@@ -1802,6 +1829,8 @@ window.__ModuleLoader__.load({
             return HIDE_KEY_LEGACY + '.' + sid
           } catch (_) { return HIDE_KEY_LEGACY + '.unknown' }
         }
+        // 2026-11-27「一键清空」前的待发送批注快照（每个会话一份），供「恢复清空」整份放回
+        function clearBackupKey() { return hideKey() + '.cleared' }
         var NOTE_KEY = 'dshap.notes'
         function readMap(key) {
           try {
@@ -1913,6 +1942,11 @@ window.__ModuleLoader__.load({
           } catch (_) { /* ignore */ }
           writeMap(hideKey(), hidden)
           // ③ 顺带清空插件的"待发送"队列（输入框边上的「批注 ×N」标签）
+          // 2026-11-27 用户读数「恢复全部，现在只恢复一条」：这一步把 ui.quotes 直接抹掉，
+          //   「恢复清空」只能还原隐藏表里的那些 → 清掉前先存一份快照，恢复时整份放回。
+          try {
+            localStorage.setItem(clearBackupKey(), JSON.stringify(ui.quotes || []))
+          } catch (_) { /* ignore */ }
           try {
             ui.quotes = []
             writePendingQuotes(readCurrentSessionId())
@@ -1940,6 +1974,10 @@ window.__ModuleLoader__.load({
         function jumpTo(text, color) {
           var raw = String(text || '').trim()
           if (raw.length < 2) return false
+          // 2026-11-27 用户读数「个别条目点了没反应」：条目尾巴带着「批注： xxx」，
+          // 原文里并没有这段 → 永远匹配不到。比之前先把这段尾巴去掉。
+          var bare = raw.replace(/\s*批注[:：][\s\S]*$/, '').trim()
+          if (bare.length >= 2) raw = bare
           var needle = raw.replace(/\s+/g, ' ').slice(0, 40)
           var compact = raw.replace(/\s+/g, '')
           var rows = candidateRows()
@@ -1949,7 +1987,9 @@ window.__ModuleLoader__.load({
             var hit = tc.indexOf(raw) !== -1 || tc.replace(/\s+/g, ' ').indexOf(needle) !== -1
             if (!hit && compact.length >= 4) hit = tc.replace(/\s+/g, '').indexOf(compact) !== -1
             if (hit) {
-              try { row.scrollIntoView({ block: 'center', behavior: 'smooth' }) } catch (_) { try { row.scrollIntoView() } catch (e2) { /* ignore */ } }
+              // 2026-11-27 用户读数「最好不要有延时」：smooth 动画本身要等 ~300ms 才算到位
+              //   → 大纲点击这条路改成瞬时到位，配合下面的同步重画 = 点下去同一帧就有标记。
+              try { row.scrollIntoView({ block: 'center', behavior: 'auto' }) } catch (_) { try { row.scrollIntoView() } catch (e2) { /* ignore */ } }
               return true
             }
           }
@@ -1962,21 +2002,57 @@ window.__ModuleLoader__.load({
           //   markersSig 觉得"没变化"就跳过 → 目标行明明有批注却画不出色块/编号。
           //   跳成功后强制重画两次（scheduleMarkerRedraw = decorateAll + 清签名 + renderMarkers），
           //   与 :4364「切会话回来标记不见了」的修法同源。
+          // 2026-11-27 ② 用户读数「跳到地方了但标记点和色彩看不到」：新挂载那批行
+          //   签名没变会被跳过，重画补到三次（60/400/900ms）。
+          var repaintArmed = false
           function repaintMarkers() {
-            if (typeof scheduleMarkerRedraw !== 'function') return
-            scheduleMarkerRedraw(60); scheduleMarkerRedraw(400)
+            // 2026-11-27 用户读数「到位置后显示标记用了很长时间，最好不要有延时」：
+            //   原来全靠 setTimeout(60/400/900) 补画 → 到位后要等 60ms 起步才见色块。
+            // 2026-11-27 ② 用户读数「标记都不显示了」＋控制台一屏刷几百行
+            //   「[annotation诊断] 条目= 4 色块节点= 0」：命中的那一刻在**同一帧内**
+            //   清空重建，会把宿主自己的挂行/滚动回调卷进来（清完→宿主重挂→签名又变→再清），
+            //   转成自激循环，越刷越画不出来。现在改成**下一帧只画一次**
+            //   （rAF ≈16ms，肉眼看不出延时），并用 repaintArmed 闸门保证同一时刻只排一次，
+            //   不叠帧、不自激；另留一次 250ms 兜底给刚挂载那批行。
+            try { decorateAll() } catch (_) { /* 装饰失败不影响重画 */ }
+            if (repaintArmed) return
+            repaintArmed = true
+            var paintOnce = function () {
+              repaintArmed = false
+              try { markersSig = null; renderMarkers() } catch (_) { /* ignore */ }
+            }
+            if (typeof requestAnimationFrame === 'function') {
+              try { requestAnimationFrame(paintOnce); setTimeout(paintOnce, 250); return } catch (_) { /* ignore */ }
+            }
+            setTimeout(paintOnce, 16)
+            if (typeof scheduleMarkerRedraw === 'function') scheduleMarkerRedraw(250)
           }
           if (jumpTo(text, color)) { repaintMarkers(); return 'found' }
           var sc = null
           try { sc = document.querySelector('[data-conversation-scroll]') } catch (_) { /* ignore */ }
           if (sc === null) { try { sc = document.querySelector('[data-chat-flow]') } catch (_) { /* ignore */ } }
           if (sc === null) return 'missing'
-          var steps = 0
-          var timer = setInterval(function () {
-            sc.scrollTop = Math.max(0, sc.scrollTop - Math.max(240, sc.clientHeight * 0.9))
-            if (jumpTo(text, color)) { repaintMarkers(); clearInterval(timer); return }
-            if (sc.scrollTop === 0 || ++steps > 30) { clearInterval(timer) }
-          }, 180)
+          // 2026-11-27 ① 用户读数「滚动过程太慢、看起来像卡顿」：离散台阶 → 改成
+          //   一次匀速滑行（rAF）：先滑到顶、再滑到底，每 110ms 查一次给挂载留一拍。
+          var total = Math.max(1, sc.scrollHeight - sc.clientHeight)
+          var sfrom = sc.scrollTop, sto = 0, t0 = Date.now(), last = 0, leg = 0, done = false
+          setTimeout(function () { done = true }, 4000)
+          var tick = function () {
+            if (done) return
+            var span = Math.abs(sto - sfrom)
+            var dur = Math.min(300, 70 + span * 0.08)
+            var k = Math.min(1, (Date.now() - t0) / dur)
+            sc.scrollTop = sfrom + (sto - sfrom) * k
+            if (Date.now() - last > 60) {
+              last = Date.now()
+              if (jumpTo(text, color)) { done = true; repaintMarkers(); return }
+            }
+            if (k < 1) { requestAnimationFrame(tick); return }
+            if (++leg >= 2) { done = true; return }
+            sfrom = sc.scrollTop; sto = total; t0 = Date.now()
+            requestAnimationFrame(tick)
+          }
+          requestAnimationFrame(tick)
           return 'searching'
         }
         /** 被"大纲里删掉"的批注，对应插件标记的原始编号集合。 */
@@ -2154,8 +2230,11 @@ window.__ModuleLoader__.load({
           listPanel.innerHTML = ''
           var items = collectAnnotations()
           var head = document.createElement('div')
-          head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-weight:600;'
+          // 2026-11-27 用户读数「这里排放不下，放成两排」：标题独占第一排，
+          // 勾选与按钮换到第二排（flex-wrap + 标题 flex:1 1 100%）。
+          head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-weight:600;flex-wrap:wrap;'
           var ht = document.createElement('span')
+          ht.style.cssText = 'flex:1 1 100%;'
           ht.textContent = '批注大纲（' + items.length + '）'
           head.appendChild(ht)
           // 拖动状态回显：按住时显示「按住中…」，移动时显示「拖动中」—— 用来一眼确认监听收到事件没有
@@ -2179,14 +2258,43 @@ window.__ModuleLoader__.load({
           lockWrap.appendChild(lockBox)
           lockWrap.appendChild(lockTxt)
           head.appendChild(lockWrap)
+          // 「自动携带批注」勾选（2026-11-26 用户要求）：勾上＝每次发送自动拼批注块；
+          // 不勾＝不自动进入每轮对话，只有草稿里用「@」显式引用批注时才拼入。
+          var aaWrap = document.createElement('label')
+          aaWrap.setAttribute('data-dshap-nodrag', '1')
+          aaWrap.title = '勾上＝每次发消息自动带上批注；取消＝不自动注入，只有你在输入框里用 @ 引用时才带上'
+          aaWrap.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:11px;font-weight:400;'
+            + 'color:var(--dsw-alias-label-tertiary,#999);cursor:pointer;user-select:none;white-space:nowrap;'
+          var aaBox = document.createElement('input')
+          aaBox.type = 'checkbox'
+          aaBox.checked = isAutoAttach()
+          aaBox.style.cssText = 'margin:0;cursor:pointer;'
+          aaBox.addEventListener('change', function () { setAutoAttach(!!aaBox.checked) })
+          var aaTxt = document.createElement('span')
+          aaTxt.textContent = '自动携带'
+          aaWrap.appendChild(aaBox)
+          aaWrap.appendChild(aaTxt)
+          head.appendChild(aaWrap)
           var hb = document.createElement('div')
           hb.style.cssText = 'display:flex;align-items:center;gap:8px;'
+          // 2026-11-27 用户读数「一键清空 / 恢复已隐藏 点了没反应」：与 ✏/🗑 同一病因
+          // （宿主升级后 click 会被吞），改成 pointerdown + click 双绑、400ms 去重。
+          var bindHeadAct = function (btn, fn) {
+            var done = 0
+            var fire = function (e) {
+              e.stopPropagation(); e.preventDefault()
+              if (done) return
+              done = 1; fn(); setTimeout(function () { done = 0 }, 400)
+            }
+            btn.addEventListener('pointerdown', fire)
+            btn.addEventListener('click', fire)
+          }
           var clearAll = document.createElement('span')
-          clearAll.textContent = '一键清空全部'
+          clearAll.textContent = '一键清空'
           clearAll.title = '清空这一对话里的全部批注（正文里的黄底与编号一起去掉）'
           clearAll.style.cssText = 'cursor:pointer;font-size:13px;font-weight:600;padding:5px 12px;border-radius:8px;'
             + 'border:1px solid rgba(255,90,90,.6);background:rgba(255,90,90,.18);'
-          clearAll.addEventListener('click', function (e) { e.stopPropagation(); confirmClear = true; listSig = ''; renderList() })
+          bindHeadAct(clearAll, function () { confirmClear = true; listSig = ''; renderList() })
           hb.appendChild(clearAll)
           var hidCount = 0
           try {
@@ -2195,13 +2303,31 @@ window.__ModuleLoader__.load({
           } catch (_) { /* ignore */ }
           if (hidCount > 0) {
             var restore = document.createElement('span')
-            restore.textContent = '恢复已隐藏(' + hidCount + ')'
+            restore.textContent = '恢复清空(' + hidCount + ')'
             restore.title = '把之前「删除/清空」掉的批注恢复显示（内容还在，只是被藏起来了）'
             restore.style.cssText = 'cursor:pointer;font-size:13px;font-weight:600;padding:5px 12px;border-radius:8px;'
               + 'border:1px solid rgba(120,200,120,.6);background:rgba(120,200,120,.18);'
-            restore.addEventListener('click', function (e) {
-              e.stopPropagation()
+            bindHeadAct(restore, function () {
               writeMap(hideKey(), {})
+              // 2026-11-27「只恢复一条」修法：把清空前存的待发送快照整份放回，
+              //   按 text 去重，放回后重写队列 + 刷新角标。
+              try {
+                var snap = JSON.parse(localStorage.getItem(clearBackupKey()))
+                if (Object.prototype.toString.call(snap) === '[object Array]') {
+                  for (var s = 0; s < snap.length; s++) {
+                    var st = String((snap[s] && snap[s].text) || '')
+                    if (st === '') continue
+                    var dup = false
+                    for (var q = 0; q < ui.quotes.length; q++) {
+                      if (String((ui.quotes[q] && ui.quotes[q].text) || '') === st) { dup = true; break }
+                    }
+                    if (!dup) ui.quotes.push(snap[s])
+                  }
+                  writePendingQuotes(readCurrentSessionId())
+                  updateChip()
+                }
+                localStorage.removeItem(clearBackupKey())
+              } catch (_) { /* ignore */ }
               listSig = ''
               applyMarkerState()
               renderList()
@@ -2307,23 +2433,36 @@ window.__ModuleLoader__.load({
               }
               var acts = document.createElement('div')
               acts.style.cssText = 'flex:0 0 auto;display:flex;gap:8px;align-items:center;'
+              // 宿主 0.2.2-rc.3 起 click 可能不上来：pointerdown 也认，400ms 内去重防双触发
+              var bindAct = function (btn, fn) {
+                var done = 0
+                var fire = function (e) {
+                  e.stopPropagation(); e.preventDefault()
+                  if (done) return
+                  done = 1; fn(); setTimeout(function () { done = 0 }, 400)
+                }
+                btn.addEventListener('pointerdown', fire)
+                btn.addEventListener('click', fire)
+              }
               var eb = document.createElement('span')
               eb.textContent = '✏'; eb.title = '改批注'
               eb.style.cssText = 'cursor:pointer;font-size:20px;line-height:1;padding:4px 8px;border-radius:8px;'
                 + 'border:1px solid var(--dsw-alias-border-inverted,#444);background:rgba(127,127,127,.12);'
               eb.addEventListener('mouseenter', function () { eb.style.background = 'rgba(127,127,127,.28)' })
               eb.addEventListener('mouseleave', function () { eb.style.background = 'rgba(127,127,127,.12)' })
-              eb.addEventListener('click', function (e) { e.stopPropagation(); editItem(it) })
+              bindAct(eb, function () { editItem(it) })
               var db = document.createElement('span')
               db.textContent = '🗑'; db.title = '清除这条（本地隐藏，不改历史消息）'
               db.style.cssText = 'cursor:pointer;font-size:20px;line-height:1;padding:4px 8px;border-radius:8px;'
                 + 'border:1px solid var(--dsw-alias-border-inverted,#444);background:rgba(127,127,127,.12);'
               db.addEventListener('mouseenter', function () { db.style.background = 'rgba(255,90,90,.28)' })
               db.addEventListener('mouseleave', function () { db.style.background = 'rgba(127,127,127,.12)' })
-              db.addEventListener('click', function (e) { e.stopPropagation(); removeItem(it) })
+              bindAct(db, function () { removeItem(it) })
               acts.appendChild(eb); acts.appendChild(db)
               rowEl.appendChild(acts)
-              rowEl.addEventListener('click', function () {
+              // 2026-11-27 用户读数「点条目不动、不会跳到标记位置」：整行也只绑了 click，
+              // 与 ✏/🗑 同一病因 → 复用 bindAct（pointerdown + click，400ms 去重）。
+              bindAct(rowEl, function () {
                 var old = listPanel.querySelector('.dshap-miss')
                 if (old !== null) old.remove()
                 var res = jumpToScrolling(it.text, colorForItem(it.text, badgeNum))
@@ -2341,7 +2480,8 @@ window.__ModuleLoader__.load({
           }
           var lf = document.createElement('div')
           lf.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(127,127,127,.25);font-size:12px;line-height:1.7;color:var(--dsw-alias-label-tertiary,#999);'
-          lf.innerHTML = 'dsh-xwide-annotation <b>v1.6.0</b> · 2026-10-30<br>'
+          lf.innerHTML = 'dsh-xwide-annotation <b>v1.7.0</b> · 2026-11-27<br>'
+             + '适配 DeepSeek Harness <b>0.2.x</b>（实测 0.2.21 / Electron）<br>'
             + '原作者 <a href="https://github.com/omdsh-dev/dsh-annotation" target="_blank" rel="noreferrer">omdsh-dev（MIT）</a>'
             + ' · 发布页：<a href="https://github.com/XWIDE/dsh-xwide-annotation" target="_blank" rel="noreferrer">github.com/XWIDE/dsh-xwide-annotation</a><br>'
             + '升级 <a href="https://github.com/XWIDE" target="_blank" rel="noreferrer"><b>X-WIDE</b></a> · '
@@ -2511,10 +2651,23 @@ window.__ModuleLoader__.load({
           readCustoms().forEach(function (hex) {
             var cwb = document.createElement('div')
             cwb.setAttribute('data-swatch', hex)
-            cwb.title = hex
+            cwb.title = hex + '（右键删除这颗自定义色）'
             cwb.style.cssText = 'width:28px;height:28px;border-radius:8px;cursor:pointer;'
               + 'border:2px solid ' + (cur === hex ? '#fff' : 'transparent') + ';background:' + hex + ';'
             cwb.addEventListener('click', function (ev) { ev.stopPropagation(); bindToCard(hex) })
+            // 2026-11-27 用户读数「这里面用右键清除当前自己定义色块 / 自定义出来的色块没法清除」：
+            // 卡片里这排自定义色原来**根本没有删除入口**（删除只在另一个🎨面板里）→ 就地加右键。
+            var dropIt = function (ev) {
+              ev.preventDefault(); ev.stopPropagation()
+              var list = readCustoms()
+              var idx = list.indexOf(hex)
+              if (idx !== -1) { list.splice(idx, 1); saveCustoms(list) }
+              if (readColor() === hex) { try { clearColor() } catch (_) { /* ignore */ } }
+              wrap.parentNode.replaceChild(buildColorRow(), wrap)
+            }
+            cwb.addEventListener('contextmenu', dropIt)
+            // 右键在宿主里不一定通得到，双击作为兜底（同一个函数，不会重复删）
+            cwb.addEventListener('dblclick', dropIt)
             wrap.appendChild(cwb)
           })
           // 彩虹色块 = 展开/收起**自带「确定 / 取消」**的取色盘。
@@ -2543,6 +2696,20 @@ window.__ModuleLoader__.load({
             }, function () { closeCardPicker() })
             wrap.appendChild(cardPicker)
           })
+          // 2026-11-27 用户读数「自定义颜色，和右键取消还没做」：
+          //   原来右键只绑在**已存的自定义色块**上；一旦这排里没有自定义色（截图实测：
+          //   只有 4 颗预设 + 彩虹口），就没有任何可右键的东西 → 「取消当前生效的自定义色」
+          //   这个动作根本没有入口。现在把右键/双击直接绑到彩虹方块本身：
+          //   右键 = 取消当前生效色（回到默认编号色）+ 刷新正文标记 + 重建这一排。
+          var cancelCurrent = function (ev) {
+            ev.preventDefault(); ev.stopPropagation()
+            try { clearColor() } catch (_) { /* ignore */ }
+            try { applyMarkerState() } catch (_) { /* ignore */ }
+            try { wrap.parentNode.replaceChild(buildColorRow(), wrap) } catch (_) { /* ignore */ }
+          }
+          cw.title = '自定义颜色：点开取色盘，选完点「确定」；右键＝取消当前颜色'
+          cw.addEventListener('contextmenu', cancelCurrent)
+          cw.addEventListener('dblclick', cancelCurrent)
           wrap.appendChild(cw)
           return wrap
         }
@@ -3459,6 +3626,7 @@ window.__ModuleLoader__.load({
         return d + ')'
       }
 
+      var lastDiagLogAt = 0   // 诊断日志节流戳（2026-11-27）
       function renderMarkers() {
         // 2026-10-16 本地升级（用户要求"滚动时标记别消失"）：只挖去输入区，
         // 不再挖会话头部 → 原文滚到标题栏下面时高亮/编号仍可见，不再整条消失。
@@ -3474,6 +3642,22 @@ window.__ModuleLoader__.load({
           overlay.textContent = ''
           numLayer.textContent = ''
           buildMarkers()
+          // 诊断（2026-11-27，用户读数「标记点和色彩都不显示」）：一次分清三种病因 ——
+          // 条目数=0 → 数据没恢复；色块节点=0 → 匹配不到原文；两者都有 → 画了但被盖住。
+          // 2026-11-27 ② 加节流：这条原来每次签名变化都打，一屏刷几百行本身就是负担，
+          //   现在只在**画不出色块**（条目>0 而色块=0）时打，且每 3 秒最多一条。
+          try {
+            var dbgItems = markerListFor().length
+            if (dbgItems > 0 && overlay.childElementCount === 0) {
+              var dbgNow = Date.now()
+              if (dbgNow - lastDiagLogAt > 3000) {
+                lastDiagLogAt = dbgNow
+                console.log('[annotation诊断] 条目=', dbgItems,
+                  ' 色块节点=', overlay.childElementCount,
+                  ' 编号节点=', numLayer.childElementCount)
+              }
+            }
+          } catch (_) { /* ignore */ }
         }
         noteFollowBaseline()   // 记下「这批标记对应的滚动位置」，跟手平移量归零
       }
@@ -3565,7 +3749,17 @@ window.__ModuleLoader__.load({
         var placed = []
         for (var i = 0; i < markerList.length; i++) {
           var q = markerList[i]
+          // 2026-11-27 决定性读数「条目= 4 色块节点= 0」：四条全定位不到 → 一个色块都不画。
+          //   病根同「点了跳不过去」：大纲/恢复出来的条目文字带着「批注： xxx」这段尾巴，
+          //   正文里根本没有这段，整串永远匹配不到。这里**先用原文试，失败再用剥掉尾巴的裸文试**
+          //   （不替换原路径，保证原本能匹配的绝不变坏）。
           var range = locateQuote(q.text, q)
+          if (range === null) {
+            try {
+              var bareQ = String(q.text || '').replace(/\s*批注[:：][\s\S]*$/, '').trim()
+              if (bareQ.length >= 2 && bareQ !== String(q.text)) range = locateQuote(bareQ, q)
+            } catch (_) { /* ignore */ }
+          }
           if (range === null) continue
           var rects = quoteRects(range, q)
           for (var c = 0; c < rects.length; c++) {
@@ -3799,6 +3993,9 @@ window.__ModuleLoader__.load({
           var shell = ctx.conversation.input.for(scoped)
           var st = shell.state.getSnapshot()
           var draft = st.draft || ''
+          // 「自动携带批注」开关（2026-11-26 用户要求）：不勾＝不自动拼入每轮对话；
+          // 只有草稿里显式出现「@」（把批注 @ 到对话里）时才拼，其余原样发送。
+          if (!((typeof window.__dshapIsAutoAttach === 'function') ? !!window.__dshapIsAutoAttach() : true) && draft.indexOf('@') === -1) return false
           if (!shouldAttachForEnter(e, draft)) return false
           // 斜杠命令不拼批注（issue #20）：批注块前置会破坏命令 token 前缀，
           // 宿主 watchClaim 释放声明后 /goal 被降级为普通消息；后置追加则会
@@ -4012,7 +4209,9 @@ window.__ModuleLoader__.load({
           clearTip(chipLayer)
           return
         }
-        chipLayer.style.left = Math.max(8, Math.min(r.right - w - 12, window.innerWidth - w - 8)) + 'px'
+        // 2026-11-27 用户读数「移到红框位置」：红框＝输入卡右上角那颗圆形按钮**左边的空白**。
+        // 上一刀改成贴最左（r.left+10）跑得太远 → 改成右对齐但让开那颗钮（约 56px）。
+        chipLayer.style.left = Math.max(8, r.right - w - 56) + 'px'
         chipLayer.style.top = top + 'px'
       }
 
